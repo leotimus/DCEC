@@ -63,6 +63,8 @@ def load_fasta():
     s = map(myDecoder, lst)
               
     data = list(s)
+    print("Data")
+    print(data)
     
     # maxlength = max(data)
     for i in data:
@@ -77,7 +79,7 @@ def load_fasta():
 
 def myMapCharsToInteger(data):
   # define universe of possible input values
-  seq = 'ACTGO'
+  seq = 'ACTG'
   # define a mapping of chars to integers
   char_to_int = dict((c, i) for i, c in enumerate(seq))
   #print("Chars to int")
@@ -95,14 +97,30 @@ def setCorrectSequenceLength(n, size):
         return n.ljust(size, "O")
     return n
 
+def setSequenceLength(n, size):
+    if len(n) > size:
+        return n[:size]
+    elif len(n) < size:
+        for z in range(size - len(n)):
+            n = np.append(n, [[-1., -1., -1., -1.]], axis=0)
+    return n
 
 
 def myDecoder(n):
+  """
   decoded = bytes(n).decode()
   most_common_nucleotide = max(set(decoded), key=decoded.count)
   decoded = setCorrectSequenceLength(decoded, 1000)
   decoded = [most_common_nucleotide if x == 'N' else x for x in decoded]
+  print(decoded)
   return to_categorical(myMapCharsToInteger(decoded), num_classes=5)
+  """
+  decoded = bytes(n).decode()
+  most_common_nucleotide = max(set(decoded), key=decoded.count)
+  decoded = [most_common_nucleotide if x == 'N' else x for x in decoded]
+  encodings = to_categorical(myMapCharsToInteger(decoded), num_classes=4)
+  encodings = setSequenceLength(encodings, 1000)
+  return encodings
  
 def strLengths(n):
   decoded = bytes(n).decode()
