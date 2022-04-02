@@ -5,7 +5,7 @@ from tensorflow import keras
 from sklearn.cluster import KMeans
 import metrics
 from ConvAE import CAE
-
+from utils import get_k_estimation
 
 class ClusteringLayer(keras.layers.Layer):
     """
@@ -248,7 +248,11 @@ if __name__ == "__main__":
         x, y = x[60000:], y[60000:]
     elif args.dataset == 'fasta':
         x, y = load_fasta()
-
+        print("K-Estimation")
+        k_list = get_k_estimation("/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta")
+        k = len(k_list)
+        print(k)
+        args.n_clusters = k
     # prepare the DCEC model
     dcec = DCEC(input_shape=x.shape[1:], filters=[32, 64, 128, 10], n_clusters=args.n_clusters)
     keras.utils.plot_model(dcec.model, to_file=args.save_dir + '/dcec_model.png', show_shapes=True)
