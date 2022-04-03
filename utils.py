@@ -17,6 +17,8 @@ def get_k_estimation(contig_file, hard=0, flush_k_estimation_results=False):
 
     if os.path.exists(contig_file+'.seed'):
         print("Existing K-Estimation is used.")
+        print("Use --flush_k_estimation_results=True argument to flush the k-estimation results for the "
+              "given contig file")
         seed_list = []
         with open(contig_file+'.seed') as f:
             for line in f:
