@@ -1,8 +1,22 @@
 import os
+"""
+The code of the get_k_estimation function is a modified version of the get_seed method of the following source:
+https://github.com/sufforest/SolidBin/master/SolidBin.py
+"""
 
 
-def get_k_estimation(contig_file, hard=0):
+def get_k_estimation(contig_file, hard=0, flush_k_estimation_results=False):
+    if flush_k_estimation_results:
+        print("Flush k-estimation results for given contig file")
+        if os.path.exists(contig_file+'.seed'):
+            os.remove(contig_file+'.seed')
+        if os.path.exists(contig_file+'.frag.faa'):
+            os.remove(contig_file+'.frag.faa')
+        if os.path.exists(contig_file+".hmmout"):
+            os.remove(contig_file+".hmmout")
+
     if os.path.exists(contig_file+'.seed'):
+        print("Existing K-Estimation is used.")
         seed_list = []
         with open(contig_file+'.seed') as f:
             for line in f:

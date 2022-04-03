@@ -230,6 +230,8 @@ if __name__ == "__main__":
     parser.add_argument('--tol', default=0.001, type=float)
     parser.add_argument('--cae_weights', default=None, help='This argument must be given')
     parser.add_argument('--save_dir', default='results/temp')
+    parser.add_argument('--flush_k_estimation_results', default=False, type=bool,
+                        help='Flush the k-estimation result for the given contig file')
     args = parser.parse_args()
     print(args)
 
@@ -248,8 +250,9 @@ if __name__ == "__main__":
         x, y = x[60000:], y[60000:]
     elif args.dataset == 'fasta':
         x, y = load_fasta()
-        print("K-Estimation")
-        k_list = get_k_estimation("/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta")
+        print("Estimated number of clusters")
+        k_list = get_k_estimation("/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta",
+                                  flush_k_estimation_results=args.flush_k_estimation_results)
         k = len(k_list)
         print(k)
         args.n_clusters = k
