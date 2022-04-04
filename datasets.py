@@ -54,7 +54,7 @@ def load_fasta():
     print(f'Parsed {len(contigs.keys())} contigs')
     lst = list(contigs.values())
     # an attempt to display graph of seq. lengths, so that we can see the extreme values and delete them:
-    # the maximum length is over 1 mil, the sequences legth is not balanced:
+    # the maximum length is over 1 mil, the sequences length is not balanced:
     
     # maxlength = max(data)
     # names = np.arange(19499)
@@ -117,7 +117,10 @@ def myDecoder(n):
   decoded = bytes(n).decode()
   most_common_nucleotide = max(set(decoded), key=decoded.count)
   decoded = [most_common_nucleotide if x == 'N' else x for x in decoded]
-  encodings = tensorflow.keras.utils.to_categorical(myMapCharsToInteger(decoded), num_classes=4)
+  encoding_layer = tensorflow.keras.layers.StringLookup(vocabulary=['G', 'A', 'C', 'T'],
+                                                        output_mode='one_hot', num_oov_indices=0)
+
+  encodings = encoding_layer(decoded)
   encodings = setSequenceLength(encodings, 1000)
   return encodings
 
