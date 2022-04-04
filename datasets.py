@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow
 
 import reader.SequenceReader as sr
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as pl
 
 
 def load_mnist():

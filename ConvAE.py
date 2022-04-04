@@ -1,6 +1,6 @@
 from tensorflow import keras
 import numpy as np
-
+from utils import get_k_estimation
 
 def CAE(input_shape=(1000, 4, 1), filters=[32, 64, 128, 10]):
     model = keras.models.Sequential()
@@ -42,6 +42,8 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--epochs', default=200, type=int)
     parser.add_argument('--save_dir', default='results/temp', type=str)
+    parser.add_argument('--flush_k_estimation_results', default=False, type=bool,
+                        help='Flush the k-estimation result for the given contig file')
     args = parser.parse_args()
     print(args)
 
@@ -59,6 +61,10 @@ if __name__ == "__main__":
         x, y = load_usps('data/usps')
     elif args.dataset == 'fasta':
         x, y = load_fasta()
+        k_list = get_k_estimation("/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta",
+                                  flush_k_estimation_results=args.flush_k_estimation_results)
+        k = len(k_list)
+        args.n_clusters = k
     
     # define the model
     model = CAE(input_shape=x.shape[1:], filters=[32, 64, 128, 10])
