@@ -74,7 +74,7 @@ class ClusteringLayer(keras.layers.Layer):
 
 
 class DCEC(object):
-    def __init__(self, filters=[32, 64, 128, 10], n_clusters=10, contig_len=1000):
+    def __init__(self, filters=[32, 64, 128, 60], n_clusters=60, contig_len=1000):
 
         super(DCEC, self).__init__()
 
@@ -92,7 +92,7 @@ class DCEC(object):
         self.model = keras.models.Model(inputs=self.cae.input,
                                         outputs=[self.clustering_layer, self.cae.output])
 
-    def pretrain(self, x, batch_size=256, epochs=200, optimizer='adam', save_dir='results/temp'):
+    def pretrain(self, x, batch_size=256, epochs=1, optimizer='adam', save_dir='results/temp'):
         print('...Pretraining...')
         self.cae.compile(optimizer=optimizer, loss='mse')
         from keras.callbacks import CSVLogger
@@ -123,7 +123,7 @@ class DCEC(object):
             x_ = x[p_index * batch_size:(p_index + 1) * batch_size]
             x_ = [decode(i, self.contig_len) for i in x_]
             x_ = np.array(x_)
-            x_ = x_.reshape(-1, self.contig_len, 4, 1).astype('float32')
+            x_ = x_.reshape(-1, self.contig_len, 4).astype(np.uint8)
             q_, tmp = self.model.predict(x=x_, batch_size=None, verbose=0)
             del tmp
             if q is None:
@@ -156,6 +156,7 @@ class DCEC(object):
         predict_generator = DataGenerator(x, batch_size=batch_size, contig_len=self.contig_len)
         self.y_pred = kmeans.fit_predict(self.encoder.predict(predict_generator))
         y_pred_last = np.copy(self.y_pred)
+        #self.y_pred = self.y_pred.astype(np.int32)
         self.model.get_layer("clustering").set_weights([kmeans.cluster_centers_])
 
         # Step 3: deep clustering
@@ -189,7 +190,7 @@ class DCEC(object):
                     x_ = x[p_index * batch_size:(p_index + 1) * batch_size]
                     x_ = [decode(i, self.contig_len) for i in x_]
                     x_ = np.array(x_)
-                    x_ = x_.reshape(-1, self.contig_len, 4, 1).astype('float32')
+                    x_ = x_.reshape(-1, self.contig_len, 4).astype(np.uint8)
                     q_, tmp = self.model.predict(x=x_, batch_size=None, verbose=0)
                     del tmp
                     if q is None:
@@ -207,6 +208,8 @@ class DCEC(object):
 
                 # evaluate the clustering performance
                 self.y_pred = q.argmax(1)
+                self.y_pred = self.y_pred.astype(np.int32)
+                
                 if y is not None:
                     acc = np.round(metrics.acc(y, self.y_pred), 5)
                     nmi = np.round(metrics.nmi(y, self.y_pred), 5)
@@ -230,7 +233,7 @@ class DCEC(object):
                 x_ = x[index * batch_size::]
                 x_ = [decode(i, self.contig_len) for i in x_]
                 x_ = np.array(x_)
-                x_ = x_.reshape(-1, self.contig_len, 4, 1).astype('float32')
+                x_ = x_.reshape(-1, self.contig_len, 4).astype(np.uint8)
                 y_ = p[index * batch_size::]
                 loss = self.model.train_on_batch(x=x_, y=[y_, x_])
                 index = 0
@@ -238,7 +241,7 @@ class DCEC(object):
                 x_ = x[index * batch_size:(index + 1) * batch_size]
                 x_ = [decode(i, self.contig_len) for i in x_]
                 x_ = np.array(x_)
-                x_ = x_.reshape(-1, self.contig_len, 4, 1).astype('float32')
+                x_ = x_.reshape(-1, self.contig_len, 4).astype(np.uint8)
                 y_ = p[index * batch_size:(index + 1) * batch_size]
                 loss = self.model.train_on_batch(x=x_, y=[y_, x_])
                 index += 1
@@ -284,7 +287,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='train')
     parser.add_argument('dataset', default='mnist', choices=['mnist', 'usps', 'mnist-test', 'fasta'])
-    parser.add_argument('--n_clusters', default=10, type=int)
+    parser.add_argument('--n_clusters', default=60, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--maxiter', default=2e4, type=int)
     parser.add_argument('--gamma', default=0.1, type=float,
@@ -310,7 +313,7 @@ if __name__ == "__main__":
     # prepare the DCEC model
     # shape_ = x.shape[1:]
     # dcec = DCEC(input_shape=shape_, filters=[32, 64, 128, 10], n_clusters=args.n_clusters)
-    dcec = DCEC(filters=[32, 64, 128, 10], n_clusters=args.n_clusters, contig_len=args.contig_len)
+    dcec = DCEC(filters=[32, 64, 128, 60], n_clusters=args.n_clusters, contig_len=args.contig_len)
     keras.utils.plot_model(dcec.model, to_file=args.save_dir + '/dcec_model.png', show_shapes=True)
     dcec.model.summary()
 
