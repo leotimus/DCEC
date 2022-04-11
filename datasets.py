@@ -61,13 +61,12 @@ def load_fasta(numberOfSamples=None):
     # plt.show()
       
     s = map(myDecoder, lst)
-              
     data = list(s)
-    
     # maxlength = max(data)
-    for i in data:
-        if i.shape != (1000, 4):
-            data.remove(i)
+    #for i in data:
+        #print(i.shape)
+        #if i.shape != (1000, 4):
+            #data.remove(i)
     
     x = np.array(data)
     print('FASTA:', x.shape)
@@ -114,6 +113,18 @@ def setSequenceLength(n, size):
     return n
 
 
+def setSequenceLengthInt(n, size):
+    if len(n) > size:
+        return n[:size]
+    elif len(n) < size:
+        padding = np.array([0] *(size - len(n)))
+        n = np.concatenate((n, padding), axis=0)
+    return n
+
+
+encoding_dict = {"A": 0.25, "C": 0.50, "G": 0.75, "T": 1}
+
+
 def myDecoder(n):
   """
   decoded = bytes(n).decode()
@@ -126,9 +137,10 @@ def myDecoder(n):
   decoded = bytes(n).decode()
   most_common_nucleotide = max(set(decoded), key=decoded.count)
   decoded = [most_common_nucleotide if x == 'N' else x for x in decoded]
-  encodings = tensorflow.keras.utils.to_categorical(myMapCharsToInteger(decoded), num_classes=4)
-  encodings = setSequenceLength(encodings, 1000)
-  return encodings
+  new_encodings = [encoding_dict[n] for n in decoded]
+  #encodings = tensorflow.keras.utils.to_categorical(myMapCharsToInteger(decoded), num_classes=4)
+  #encodings = setSequenceLength(encodings, 1000)
+  return setSequenceLengthInt(new_encodings, 1000)
 
  
 def strLengths(n):
