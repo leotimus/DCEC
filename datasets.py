@@ -59,7 +59,7 @@ def load_fasta(n_samples=None, contig_len=1000):
     
     x = np.array(data)
     print('FASTA:', x.shape)
-    x = x.reshape(-1, contig_len, 4).astype(np.uint8)
+    x = x.reshape(-1, contig_len, 4).astype(np.float32)
     print('FASTA:', x.shape)
     return x, None
 
