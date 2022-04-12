@@ -50,7 +50,7 @@ def load_usps(data_path='./data/usps'):
     return x, y
 
 
-def load_fasta(n_samples=None, contig_len=20164):
+def load_fasta(n_samples=None, contig_len=20736):
     lst = get_sequence_samples(n_samples)
     data = [decode(contig, contig_len) for contig in lst]
     #for i in data:
@@ -65,8 +65,7 @@ def load_fasta(n_samples=None, contig_len=20164):
     # plt.show()
     x = np.array(data)
     print('FASTA before reshape:', x.shape).astype('float32')
-    x = x.reshape(-1, contig_len, 4, 1).astype('float32')
-    x = x.reshape(-1, 142, 142, 1)
+    x = x.reshape(-1, 144, 144, 1)
     print('FASTA after reshape:', x.shape).astype('float32')
     return x, None
 
@@ -120,7 +119,7 @@ def setSequenceLengthInt(n, size):
 
 encoding_dict = {"A": 0.25, "C": 0.50, "G": 0.75, "T": 1}
 
-def decode(n, contig_len=20164):
+def decode(n, contig_len=20736):
   """
   decoded = bytes(n).decode()
   most_common_nucleotide = max(set(decoded), key=decoded.count)

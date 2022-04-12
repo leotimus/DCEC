@@ -74,7 +74,7 @@ class ClusteringLayer(keras.layers.Layer):
 
 
 class DCEC(object):
-    def __init__(self, filters=[32, 64, 128, 10], n_clusters=10, contig_len=20736):
+    def __init__(self, filters=[32, 64, 128, 60], n_clusters=60, contig_len=20736):
 
         super(DCEC, self).__init__()
 
@@ -310,7 +310,7 @@ if __name__ == "__main__":
     # prepare the DCEC model
     # shape_ = x.shape[1:]
     # dcec = DCEC(input_shape=shape_, filters=[32, 64, 128, 10], n_clusters=args.n_clusters)
-    dcec = DCEC(filters=[32, 64, 128, 10], n_clusters=args.n_clusters, contig_len=args.contig_len)
+    dcec = DCEC(filters=[32, 64, 128, 60], n_clusters=args.n_clusters, contig_len=args.contig_len)
     keras.utils.plot_model(dcec.model, to_file=args.save_dir + '/dcec_model.png', show_shapes=True)
     dcec.model.summary()
 
