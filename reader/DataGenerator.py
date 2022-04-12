@@ -32,8 +32,6 @@ class DataGenerator(tf.keras.utils.Sequence):
 
     def __data_generation(self, x_temp):
         X = []
-        print("Contig L")
-        print(self.contig_len)
         for i, contig in enumerate(x_temp):
             X.append(decode(contig, contig_len=self.contig_len))
         X = np.array(X)
