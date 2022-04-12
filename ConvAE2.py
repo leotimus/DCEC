@@ -4,13 +4,13 @@ import numpy as np
 from reader.DataGenerator import DataGenerator
 
 
-def CAE2(filters=[32, 64, 128, 10], contig_len=20164):
+def CAE2(filters=[32, 64, 128, 10], contig_len=20736):
     model = keras.models.Sequential()
-    input_shape = (142, 142, 1)
+    input_shape = (144, 144, 1)
     print("Shape")
     print(input_shape)
     model.add(keras.layers.Masking(mask_value=-1., input_shape=input_shape))
-    if input_shape[0] % 4 == 0:
+    if input_shape[0] % 8 == 0:
         pad3 = 'same'
     else:
         pad3 = 'valid'
@@ -69,7 +69,7 @@ if __name__ == "__main__":
     x, y = load_fasta()
 
     # define the model
-    model = CAE2(filters=[32, 64, 128, 10], contig_len=20164)
+    model = CAE2(filters=[32, 64, 128, 10], contig_len=20736)
     keras.utils.plot_model(model, to_file=args.save_dir + '/fasta-pretrain-model.png', show_shapes=True)
     model.summary()
 

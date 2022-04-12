@@ -2,7 +2,7 @@ from tensorflow import keras
 import numpy as np
 
 
-def CAE(input_shape=(142, 142, 1), filters=[32, 64, 128, 10]):
+def CAE(input_shape=(144, 144, 1), filters=[32, 64, 128, 10]):
     model = keras.models.Sequential()
     model.add(keras.layers.Masking(mask_value=0., input_shape=input_shape))
     if input_shape[0] % 8 == 0:
