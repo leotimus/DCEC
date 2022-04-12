@@ -74,7 +74,7 @@ class ClusteringLayer(keras.layers.Layer):
 
 
 class DCEC(object):
-    def __init__(self, filters=[32, 64, 128, 10], n_clusters=10, contig_len=1000):
+    def __init__(self, filters=[32, 64, 128, 60], n_clusters=60, contig_len=20736):
 
         super(DCEC, self).__init__()
 
@@ -123,7 +123,7 @@ class DCEC(object):
             x_ = x[p_index * batch_size:(p_index + 1) * batch_size]
             x_ = [decode(i, self.contig_len) for i in x_]
             x_ = np.array(x_)
-            x_ = x_.reshape(-1, self.contig_len, 4, 1).astype('float32')
+            x_ = x_.reshape(-1, 144, 144, 1).astype('float32')
             q_, tmp = self.model.predict(x=x_, batch_size=None, verbose=0)
             del tmp
             if q is None:
@@ -189,7 +189,7 @@ class DCEC(object):
                     x_ = x[p_index * batch_size:(p_index + 1) * batch_size]
                     x_ = [decode(i, self.contig_len) for i in x_]
                     x_ = np.array(x_)
-                    x_ = x_.reshape(-1, self.contig_len, 4, 1).astype('float32')
+                    x_ = x_.reshape(-1, 144, 144, 1).astype('float32')
                     q_, tmp = self.model.predict(x=x_, batch_size=None, verbose=0)
                     del tmp
                     if q is None:
@@ -230,7 +230,7 @@ class DCEC(object):
                 x_ = x[index * batch_size::]
                 x_ = [decode(i, self.contig_len) for i in x_]
                 x_ = np.array(x_)
-                x_ = x_.reshape(-1, self.contig_len, 4, 1).astype('float32')
+                x_ = x_.reshape(-1, 144, 144, 1).astype('float32')
                 y_ = p[index * batch_size::]
                 loss = self.model.train_on_batch(x=x_, y=[y_, x_])
                 index = 0
@@ -238,7 +238,7 @@ class DCEC(object):
                 x_ = x[index * batch_size:(index + 1) * batch_size]
                 x_ = [decode(i, self.contig_len) for i in x_]
                 x_ = np.array(x_)
-                x_ = x_.reshape(-1, self.contig_len, 4, 1).astype('float32')
+                x_ = x_.reshape(-1, 144, 144, 1).astype('float32')
                 y_ = p[index * batch_size:(index + 1) * batch_size]
                 loss = self.model.train_on_batch(x=x_, y=[y_, x_])
                 index += 1
@@ -293,7 +293,7 @@ if __name__ == "__main__":
     parser.add_argument('--tol', default=0.001, type=float)
     parser.add_argument('--cae_weights', default=None, help='This argument must be given')
     parser.add_argument('--save_dir', default='results/temp')
-    parser.add_argument('--contig_len', default=1000, type=int)
+    parser.add_argument('--contig_len', default=20736, type=int)
     parser.add_argument('--n_samples', default=None, type=int)
     args = parser.parse_args()
     print(args)
@@ -310,7 +310,7 @@ if __name__ == "__main__":
     # prepare the DCEC model
     # shape_ = x.shape[1:]
     # dcec = DCEC(input_shape=shape_, filters=[32, 64, 128, 10], n_clusters=args.n_clusters)
-    dcec = DCEC(filters=[32, 64, 128, 10], n_clusters=args.n_clusters, contig_len=args.contig_len)
+    dcec = DCEC(filters=[32, 64, 128, 60], n_clusters=args.n_clusters, contig_len=args.contig_len)
     keras.utils.plot_model(dcec.model, to_file=args.save_dir + '/dcec_model.png', show_shapes=True)
     dcec.model.summary()
 
