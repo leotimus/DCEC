@@ -32,7 +32,7 @@ class ClusteringLayer(keras.layers.Layer):
 
     def __init__(self, n_clusters, weights=None, alpha=1.0, **kwargs):
         if 'input_shape' not in kwargs and 'input_dim' in kwargs:
-            kwargs['input_shapeinput_shape'] = (kwargs.pop('input_dim'),)
+            kwargs['input_shape'] = (kwargs.pop('input_dim'),)
         super(ClusteringLayer, self).__init__(**kwargs)
         self.n_clusters = n_clusters
         self.alpha = alpha

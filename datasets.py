@@ -64,9 +64,9 @@ def load_fasta(n_samples=None, contig_len=20736):
     # plt.bar(data, names)
     # plt.show()
     x = np.array(data)
-    print('FASTA before reshape:', x.shape).astype('float32')
+    print('FASTA before reshape:', x.shape)
     x = x.reshape(-1, 144, 144, 1)
-    print('FASTA after reshape:', x.shape).astype('float32')
+    print('FASTA after reshape:', x.shape)
     return x, None
 
 
