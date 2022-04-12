@@ -4,9 +4,11 @@ import numpy as np
 from reader.DataGenerator import DataGenerator
 
 
-def CAE2(filters=[32, 64, 128, 10], contig_len=1000):
-    input_shape = (contig_len, 4, 1)
+def CAE2(filters=[32, 64, 128, 10], contig_len=20164):
     model = keras.models.Sequential()
+    input_shape = (142, 142, 1)
+    print("Shape")
+    print(input_shape)
     model.add(keras.layers.Masking(mask_value=-1., input_shape=input_shape))
     if input_shape[0] % 8 == 0:
         pad3 = 'same'
@@ -67,7 +69,7 @@ if __name__ == "__main__":
     x, y = load_fasta()
 
     # define the model
-    model = CAE2(filters=[32, 64, 128, 10], contig_len=20000)
+    model = CAE2(filters=[32, 64, 128, 10], contig_len=20164)
     keras.utils.plot_model(model, to_file=args.save_dir + '/fasta-pretrain-model.png', show_shapes=True)
     model.summary()
 
@@ -80,7 +82,7 @@ if __name__ == "__main__":
 
     # begin training
     t0 = time()
-    data_generator = DataGenerator(x, batch_size=args.batch_size, contig_len=20000)
+    data_generator = DataGenerator(x, batch_size=args.batch_size, contig_len=20164)
     model.fit(x=data_generator, epochs=args.epochs, callbacks=[csv_logger])
     print('Training time: ', time() - t0)
     model.save(args.save_dir + '/fasta-pretrain-model-%d.h5' % args.epochs)

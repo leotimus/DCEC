@@ -50,14 +50,12 @@ def load_usps(data_path='./data/usps'):
     return x, y
 
 
-def load_fasta(n_samples=None, contig_len=1000):
+def load_fasta(n_samples=None, contig_len=20164):
     lst = get_sequence_samples(n_samples)
     data = [decode(contig, contig_len) for contig in lst]
-    for i in data:
-        if i.shape != (contig_len, 4):
-            data.remove(i)
-def load_fasta(numberOfSamples=None):
-    lst = get_sequence_samples(numberOfSamples)
+    #for i in data:
+        #if i.shape != (contig_len, 4):
+            #data.remove(i)
     # an attempt to display graph of seq. lengths, so that we can see the extreme values and delete them:
     # the maximum length is over 1 mil, the sequences legth is not balanced:
 
@@ -65,19 +63,11 @@ def load_fasta(numberOfSamples=None):
     # names = np.arange(19499)
     # plt.bar(data, names)
     # plt.show()
-
-    s = map(myDecoder, lst)
-    data = list(s)
-    # maxlength = max(data)
-    #for i in data:
-        #print(i.shape)
-        #if i.shape != (1000, 4):
-            #data.remove(i)
-
     x = np.array(data)
-    print('FASTA:', x.shape)
+    print('FASTA before reshape:', x.shape).astype('float32')
     x = x.reshape(-1, contig_len, 4, 1).astype('float32')
-    print('FASTA:', x.shape)
+    x = x.reshape(-1, 142, 142, 1)
+    print('FASTA after reshape:', x.shape).astype('float32')
     return x, None
 
 
@@ -130,9 +120,7 @@ def setSequenceLengthInt(n, size):
 
 encoding_dict = {"A": 0.25, "C": 0.50, "G": 0.75, "T": 1}
 
-
-def myDecoder(n):
-def decode(n, contig_len=20000):
+def decode(n, contig_len=20164):
   """
   decoded = bytes(n).decode()
   most_common_nucleotide = max(set(decoded), key=decoded.count)
@@ -144,13 +132,11 @@ def decode(n, contig_len=20000):
   decoded = bytes(n).decode()
   most_common_nucleotide = max(set(decoded), key=decoded.count)
   decoded = [most_common_nucleotide if x == 'N' else x for x in decoded]
-  encodings = tensorflow.keras.utils.to_categorical(myMapCharsToInteger(decoded), num_classes=4)
-  encodings = setSequenceLength(encodings, contig_len)
-  return encodings
-  new_encodings = [encoding_dict[n] for n in decoded]
   #encodings = tensorflow.keras.utils.to_categorical(myMapCharsToInteger(decoded), num_classes=4)
-  #encodings = setSequenceLength(encodings, 1000)
-  return setSequenceLengthInt(new_encodings, 1000)
+  #encodings = setSequenceLength(encodings, contig_len)
+  #return encodings
+  new_encodings = [encoding_dict[n] for n in decoded]
+  return setSequenceLengthInt(new_encodings, contig_len)
 
  
 def strLengths(n):
