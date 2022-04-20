@@ -4,7 +4,7 @@ from datasets import decode
 
 
 class DataGenerator(tf.keras.utils.Sequence):
-    def __init__(self, x, batch_size=32, contig_len=1000):
+    def __init__(self, x, batch_size=32, contig_len=20000):
         self.batch_size = batch_size
         self.x = x
         self.on_epoch_end()

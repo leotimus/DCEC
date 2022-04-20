@@ -13,8 +13,8 @@ def print_gpu_info():
 
 def write_bin_samples():
     x = get_sequence_samples()
-    dcec = DCEC(filters=[32, 64, 128, 10], n_clusters=60, contig_len=20000)
-    dcec.model.load_weights("results/debug1/dcec_model_final.h5")
+    dcec = DCEC(filters=[32, 64, 128, 30, 256], n_clusters=37, contig_len=1008)
+    dcec.model.load_weights("results/temp3/dcec_model_final.h5")
     clusters = dcec.predict(x, batch_size=256)
 
     fasta = "/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta"
@@ -23,6 +23,7 @@ def write_bin_samples():
     binsDict = mapBinAndContigNames(fastaDict, clusters)
     writeBins("results/debug1/bins", bins=binsDict, fastadict=fastaDict)
     print(f'predict size: ', len(clusters))
+
 
 
 def training_full_20k():

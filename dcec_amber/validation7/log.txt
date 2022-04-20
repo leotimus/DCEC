@@ -1,0 +1,15 @@
+2022-04-20 14:14:37,673 INFO Found @Version:0.9.1
+2022-04-20 14:14:37,673 INFO Found @Version:0.9.0
+2022-04-20 14:14:37,673 INFO Found @SampleID:gsa
+2022-04-20 14:14:37,674 INFO Found @SampleID:gsa
+2022-04-20 14:14:37,691 INFO Loading gsa
+2022-04-20 14:14:37,691 INFO Loading gsa
+2022-04-20 14:14:37,712 INFO Loading Gold standard
+2022-04-20 14:14:37,716 INFO Loading DCEC
+2022-04-20 14:14:37,725 INFO Creating output directories
+2022-04-20 14:14:37,726 INFO Evaluating Gold standard (sample gsa, genome binning)
+2022-04-20 14:14:37,819 INFO Evaluating DCEC (sample gsa, genome binning)
+2022-04-20 14:14:37,910 INFO Saving computed metrics
+2022-04-20 14:14:37,926 INFO Creating genome binning plots
+2022-04-20 14:14:41,829 INFO Creating HTML page
+2022-04-20 14:14:42,342 INFO AMBER finished successfully. All results have been saved to /home/jpolas20/Source/DCEC_project/DCEC/dcec_amber/validation7

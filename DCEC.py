@@ -5,7 +5,7 @@ import tensorflow as tf
 from tensorflow import keras
 from sklearn.cluster import KMeans
 import metrics
-from ConvAE2 import CAE2
+from ConvAE2 import CAE2, DiceLoss, dice_coef_loss
 from reader.DCECDataGenerator import DCECDataGenerator
 from reader.DataGenerator import DataGenerator
 from datasets import get_sequence_samples, decode
@@ -74,7 +74,7 @@ class ClusteringLayer(keras.layers.Layer):
 
 
 class DCEC(object):
-    def __init__(self, filters=[32, 64, 128, 60], n_clusters=60, contig_len=1000):
+    def __init__(self, filters=[32, 64, 128, 30, 256], n_clusters=37, contig_len=1008):
 
         super(DCEC, self).__init__()
 
@@ -92,9 +92,9 @@ class DCEC(object):
         self.model = keras.models.Model(inputs=self.cae.input,
                                         outputs=[self.clustering_layer, self.cae.output])
 
-    def pretrain(self, x, batch_size=256, epochs=1, optimizer='adam', save_dir='results/temp'):
+    def pretrain(self, x, batch_size=256, epochs=10, optimizer='adam', save_dir='results/temp'):
         print('...Pretraining...')
-        self.cae.compile(optimizer=optimizer, loss=tf.keras.losses.CosineSimilarity())
+        self.cae.compile(optimizer=optimizer, loss=dice_coef_loss)
         from keras.callbacks import CSVLogger
         csv_logger = CSVLogger(args.save_dir + '/pretrain_log.csv')
 
@@ -287,7 +287,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='train')
     parser.add_argument('dataset', default='mnist', choices=['mnist', 'usps', 'mnist-test', 'fasta'])
-    parser.add_argument('--n_clusters', default=60, type=int)
+    parser.add_argument('--n_clusters', default=37, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--maxiter', default=2e4, type=int)
     parser.add_argument('--gamma', default=0.1, type=float,
@@ -296,7 +296,7 @@ if __name__ == "__main__":
     parser.add_argument('--tol', default=0.001, type=float)
     parser.add_argument('--cae_weights', default=None, help='This argument must be given')
     parser.add_argument('--save_dir', default='results/temp')
-    parser.add_argument('--contig_len', default=1000, type=int)
+    parser.add_argument('--contig_len', default=1008, type=int)
     parser.add_argument('--n_samples', default=None, type=int)
     args = parser.parse_args()
     print(args)
@@ -313,7 +313,7 @@ if __name__ == "__main__":
     # prepare the DCEC model
     # shape_ = x.shape[1:]
     # dcec = DCEC(input_shape=shape_, filters=[32, 64, 128, 10], n_clusters=args.n_clusters)
-    dcec = DCEC(filters=[32, 64, 128, 60], n_clusters=args.n_clusters, contig_len=args.contig_len)
+    dcec = DCEC(filters=[32, 64, 128, 30, 256], n_clusters=args.n_clusters, contig_len=args.contig_len)
     keras.utils.plot_model(dcec.model, to_file=args.save_dir + '/dcec_model.png', show_shapes=True)
     dcec.model.summary()
 

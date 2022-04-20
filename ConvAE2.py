@@ -1,42 +1,60 @@
 from tensorflow import keras
 import numpy as np
+import tensorflow.keras.backend as K
 
 from reader.DataGenerator import DataGenerator
 
+def dice_coef(y_true, y_pred, smooth=1):
+    """
+    Dice = (2*|X & Y|)/ (|X|+ |Y|)
+         =  2*sum(|A*B|)/(sum(A^2)+sum(B^2))
+    ref: https://arxiv.org/pdf/1606.04797v1.pdf
+    """
+    intersection = K.sum(K.abs(y_true * y_pred), axis=-1)
+    return (2. * intersection + smooth) / (K.sum(K.square(y_true),-1) + K.sum(K.square(y_pred),-1) + smooth)
 
-# def CAE1(filters=[32, 64, 128, 60], contig_len=1000):
-#     input_shape = (contig_len, 4, 1)
-#     model = keras.models.Sequential()
-#     model.add(keras.layers.Masking(mask_value=-1., input_shape=input_shape))
-#     if input_shape[0] % 8 == 0:
-#         pad3 = 'same'
-#     else:
-#         pad3 = 'valid'
+def dice_coef_loss(y_true, y_pred):
+    return 1-dice_coef(y_true, y_pred)
 
-#     model.add(keras.layers.Conv2D(filters[0], 5, strides=(2, 2), padding='same', activation='relu', name='conv1',
-#                                   input_shape=input_shape))
 
-#     model.add(keras.layers.Conv2D(filters[1], 5, strides=(2, 2), padding='same', activation='relu', name='conv2'))
+def DiceLoss(targets, inputs, smooth=1e-6):
+    
+    #flatten label and prediction tensors
+    inputs = keras.layers.Flatten()(inputs)
+    targets = keras.layers.Flatten()(targets)
+    
+    intersection = K.sum(K.dot(targets, inputs))
+    dice = (2*intersection + smooth) / (K.sum(targets) + K.sum(inputs) + smooth)
+    return 1 - dice
 
-#     model.add(keras.layers.Conv2D(filters[2], 3, strides=(2, 1), padding=pad3, activation='relu', name='conv3'))
+def CAE1(filters=[32, 64, 128, 30, 256], contig_len=1000):
+    input_shape = (contig_len, 4, 1)
+    model = keras.models.Sequential()
+    model.add(keras.layers.Masking(mask_value=-1., input_shape=input_shape))
+    if input_shape[0] % 8 == 0:
+        pad3 = 'same'
+    else:
+        pad3 = 'valid'
 
-#     model.add(keras.layers.Flatten())
-#     model.add(keras.layers.Dense(units=filters[3], name='embedding'))
-#     model.add(
-#         keras.layers.Dense(units=filters[2] * int(input_shape[0] / 8) * int(input_shape[1] / 4), activation='relu'))
+    model.add(keras.layers.Conv2D(filters[0], 5, strides=(2, 2), padding='same', activation='relu', name='conv1',
+                                   input_shape=input_shape))
 
-#     model.add(keras.layers.Reshape((int(input_shape[0] / 8), int(input_shape[1] / 4), filters[2])))
-#     model.add(
-#         keras.layers.Conv2DTranspose(filters[1], 3, strides=(2, 1), padding=pad3, activation='relu', name='deconv3'))
+    model.add(keras.layers.Conv2D(filters[1], 5, strides=(2, 2), padding='same', activation='relu', name='conv2'))
 
-#     model.add(
-#         keras.layers.Conv2DTranspose(filters[0], 5, strides=(2, 2), padding='same', activation='relu', name='deconv2'))
+    model.add(keras.layers.Conv2D(filters[2], 3, strides=(2, 1), padding=pad3, activation='relu', name='conv3'))
 
-#     model.add(keras.layers.Conv2DTranspose(input_shape[2], 5, strides=(2, 2), padding='same', name='deconv1'))
-#     model.summary()
-#     return model
+    model.add(keras.layers.Flatten())
+    model.add(keras.layers.Dense(units=filters[3], name='embedding'))
+    model.add(keras.layers.Dense(units=filters[2] * int(input_shape[0] / 8) * int(input_shape[1] / 4), activation='relu'))
 
-def CAE2(filters=[32, 64, 128, 60], contig_len=20000):
+    model.add(keras.layers.Reshape((int(input_shape[0] / 8), int(input_shape[1] / 4), filters[2])))
+    model.add(keras.layers.Conv2DTranspose(filters[1], 3, strides=(2, 1), padding=pad3, activation='relu', name='deconv3'))
+    model.add(keras.layers.Conv2DTranspose(filters[0], 5, strides=(2, 2), padding='same', activation='relu', name='deconv2'))
+    model.add(keras.layers.Conv2DTranspose(input_shape[2], 5, strides=(2, 2), padding='same', name='deconv1'))
+    model.summary()
+    return model
+
+def CAE2(filters=[32, 64, 128, 30, 256], contig_len=1008):
     input_shape = (contig_len, 4)
     model = keras.models.Sequential()
     model.add(keras.layers.Masking(mask_value=-1., input_shape=input_shape))
@@ -50,17 +68,21 @@ def CAE2(filters=[32, 64, 128, 60], contig_len=20000):
     model.add(keras.layers.Conv1D(filters[1], 5, strides=2, padding='same', activation='relu', name='conv2'))
 
     model.add(keras.layers.Conv1D(filters[2], 3, strides=2, padding=pad3, activation='relu', name='conv3'))
+    
+    model.add(keras.layers.Conv1D(filters[4], 3, strides=2, padding=pad3, activation='relu', name='conv4'))
+    
     model.add(keras.layers.Flatten())
     model.add(keras.layers.Dense(units=filters[3], name='embedding'))
-    model.add(keras.layers.Dense(units=filters[2]*int(input_shape[0]/8)*int(input_shape[1]/4), activation='relu'))
+    model.add(keras.layers.Dense(units=filters[4]*int(input_shape[0]/16)*int(input_shape[1]/4), activation='relu'))
 
-    model.add(keras.layers.Reshape((int(input_shape[0]/8), filters[2])))
-    model.summary()
-    model.add(keras.layers.Conv1DTranspose(filters[1], 3, strides=2, padding=pad3, activation='relu', name='deconv3'))
+    model.add(keras.layers.Reshape((int(input_shape[0]/16), filters[4])))
 
-    model.add(keras.layers.Conv1DTranspose(filters[0], 5, strides=2, padding='same', activation='relu', name='deconv2'))
-    model.summary()
-    model.add(keras.layers.Conv1DTranspose(input_shape[1], 5, strides=2, padding='same', name='deconv1'))
+    model.add(keras.layers.Conv1DTranspose(filters[2], 3, strides=2, padding=pad3, activation='relu', name='deconv3'))
+
+    model.add(keras.layers.Conv1DTranspose(filters[1], 5, strides=2, padding='same', activation='relu', name='deconv2'))
+
+    model.add(keras.layers.Conv1DTranspose(filters[0], 5, strides=2, padding='same', activation='sigmoid', name='deconv1'))
+    model.add(keras.layers.Conv1DTranspose(input_shape[1], 5, strides=2, padding='same', name='deconv4'))
     model.summary()
     return model
 
@@ -76,7 +98,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description='train')
-    parser.add_argument('--n_clusters', default=60, type=int)
+    parser.add_argument('--n_clusters', default=37, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--epochs', default=200, type=int)
     parser.add_argument('--save_dir', default='results/temp1', type=str)
@@ -94,7 +116,7 @@ if __name__ == "__main__":
     x, y = load_fasta()
 
     # define the model
-    model = CAE2(filters=[32, 64, 128, 60], contig_len=20000)
+    model = CAE1(filters=[32, 64, 128, 30, 256], contig_len=1008)
     keras.utils.plot_model(model, to_file=args.save_dir + '/fasta-pretrain-model.png', show_shapes=True)
     model.summary()
 
@@ -107,7 +129,7 @@ if __name__ == "__main__":
 
     # begin training
     t0 = time()
-    data_generator = DataGenerator(x, batch_size=args.batch_size, contig_len=20000)
+    data_generator = DataGenerator(x, batch_size=args.batch_size, contig_len=1008)
     model.fit(x=data_generator, epochs=args.epochs, callbacks=[csv_logger])
     print('Training time: ', time() - t0)
     model.save(args.save_dir + '/fasta-pretrain-model-%d.h5' % args.epochs)
