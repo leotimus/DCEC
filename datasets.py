@@ -4,7 +4,8 @@ import tensorflow
 
 import reader.SequenceReader as sr
 import matplotlib.pyplot as plt
-
+import os
+from parsebam import read_bamfiles
 
 def load_mnist():
     # the data, shuffled and split between train and test sets
@@ -68,6 +69,12 @@ def get_sequence_samples(n_samples=None):
     fastaFile = "/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta"
     contigs = sr.readContigs(fastaFile, numberOfSamples=n_samples)
     print(f'Parsed {len(contigs.keys())} contigs')
+    bamdir = '/share_data/cami_low/bams/single_bam/'
+    bampaths = [bamdir + filename for filename in os.listdir(bamdir) if filename.endswith('.bam')]
+    #bam_file = '/share_data/cami_low/bams/RL_S001.bam'
+    rpkms = read_bamfiles(bampaths)
+    print("RPKMS")
+    print(rpkms)
     lst = list(contigs.values())
     return lst
 

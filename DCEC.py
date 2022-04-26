@@ -298,6 +298,7 @@ if __name__ == "__main__":
     parser.add_argument('--save_dir', default='results/temp')
     parser.add_argument('--contig_len', default=1000, type=int)
     parser.add_argument('--n_samples', default=None, type=int)
+    parser.add_argument('--bam_dir', default=None, type=str)
     args = parser.parse_args()
     print(args)
 
