@@ -74,7 +74,7 @@ class ClusteringLayer(keras.layers.Layer):
 
 
 class DCEC(object):
-    def __init__(self, filters=[32, 64, 128, 30, 256], n_clusters=37, contig_len=1008):
+    def __init__(self, filters=[32, 64, 128, 37, 256], n_clusters=37, contig_len=1008):
 
         super(DCEC, self).__init__()
 
@@ -91,8 +91,17 @@ class DCEC(object):
         self.clustering_layer = ClusteringLayer(self.n_clusters, name='clustering')(hidden)
         self.model = keras.models.Model(inputs=self.cae.input,
                                         outputs=[self.clustering_layer, self.cae.output])
+        
+    def dice_coef(y_true, y_pred, smooth=1):
+        """
+        Dice = (2*|X & Y|)/ (|X|+ |Y|)
+            =  2*sum(|A*B|)/(sum(A^2)+sum(B^2))
+        ref: https://arxiv.org/pdf/1606.04797v1.pdf
+        """
+        intersection = K.sum(K.abs(y_true * y_pred), axis=-1)
+        return (2. * intersection + smooth) / (K.sum(K.square(y_true),-1) + K.sum(K.square(y_pred),-1) + smooth)
 
-    def pretrain(self, x, batch_size=256, epochs=10, optimizer='adam', save_dir='results/temp'):
+    def pretrain(self, x, batch_size=256, epochs=1, optimizer='adam', save_dir='results/temp'):
         print('...Pretraining...')
         self.cae.compile(optimizer=optimizer, loss=dice_coef_loss)
         from keras.callbacks import CSVLogger
@@ -143,7 +152,7 @@ class DCEC(object):
         weight = q ** 2 / q.sum(0)
         return (weight.T / weight.sum(1)).T
 
-    def compile(self, loss=['kld', 'mse'], loss_weights=[1, 1], optimizer='adam'):
+    def compile(self, loss=['kld', dice_coef_loss], loss_weights=[1, 1], optimizer='adam'):
         self.model.compile(loss=loss, loss_weights=loss_weights, optimizer=optimizer)
 
     def fit(self, x, y=None, batch_size=256, maxiter=2e4, tol=1e-3,
@@ -210,17 +219,18 @@ class DCEC(object):
                 self.y_pred = q.argmax(1)
                 self.y_pred = self.y_pred.astype(np.int32)
                 
-                if y is not None:
-                    acc = np.round(metrics.acc(y, self.y_pred), 5)
-                    nmi = np.round(metrics.nmi(y, self.y_pred), 5)
-                    ari = np.round(metrics.ari(y, self.y_pred), 5)
-                    loss = np.round(loss, 5)
-                    logdict = dict(iter=ite, acc=acc, nmi=nmi, ari=ari, L=loss[0], Lc=loss[1], Lr=loss[2])
-                    logwriter.writerow(logdict)
-                    print('Iter', ite, ': Acc', acc, ', nmi', nmi, ', ari', ari, '; loss=', loss)
+               # if y is not None:
+                #    acc = np.round(metrics.acc(y, self.y_pred), 5)
+                #    nmi = np.round(metrics.nmi(y, self.y_pred), 5)
+                #    ari = np.round(metrics.ari(y, self.y_pred), 5)
+                #    loss = np.round(loss, 5)
+                #    logdict = dict(iter=ite, acc=acc, nmi=nmi, ari=ari, L=loss[0], Lc=loss[1], Lr=loss[2])
+                #    logwriter.writerow(logdict)
+                #    print('Iter', ite, ': Acc', acc, ', nmi', nmi, ', ari', ari, '; loss=', loss)
 
                 # check stop criterion
                 delta_label = np.sum(self.y_pred != y_pred_last).astype(np.float32) / self.y_pred.shape[0]
+                print(delta_label)
                 y_pred_last = np.copy(self.y_pred)
                 if ite > 0 and delta_label < tol:
                     print('delta_label ', delta_label, '< tol ', tol)
@@ -246,6 +256,7 @@ class DCEC(object):
                 loss = self.model.train_on_batch(x=x_, y=[y_, x_])
                 index += 1
 
+            print(f'observed losses {loss}.')
             del x_
             del y_
 
@@ -313,13 +324,13 @@ if __name__ == "__main__":
     # prepare the DCEC model
     # shape_ = x.shape[1:]
     # dcec = DCEC(input_shape=shape_, filters=[32, 64, 128, 10], n_clusters=args.n_clusters)
-    dcec = DCEC(filters=[32, 64, 128, 30, 256], n_clusters=args.n_clusters, contig_len=args.contig_len)
+    dcec = DCEC(filters=[32, 64, 128, 37, 256], n_clusters=args.n_clusters, contig_len=args.contig_len)
     keras.utils.plot_model(dcec.model, to_file=args.save_dir + '/dcec_model.png', show_shapes=True)
     dcec.model.summary()
 
     # begin clustering.
     optimizer = 'adam'
-    dcec.compile(loss=['kld', 'mse'], loss_weights=[args.gamma, 1], optimizer=optimizer)
+    dcec.compile(loss=['kld', dice_coef_loss], loss_weights=[args.gamma, 1], optimizer=optimizer)
     # Step 1: pretrain if necessary
     dcec.init_cae(batch_size=args.batch_size, cae_weights=args.cae_weights, save_dir=args.save_dir, x=x)
     # Step 2: train with cpu
