@@ -35,5 +35,5 @@ class DataGenerator(tf.keras.utils.Sequence):
         for i, contig in enumerate(x_temp):
             X.append(decode(contig, contig_len=self.contig_len))
         X = np.array(X)
-        X = X.reshape(-1, self.contig_len, 4, 1).astype('float32')
+        X = X.reshape(-1, self.contig_len, 4).astype('float32')
         return X, X
