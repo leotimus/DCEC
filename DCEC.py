@@ -96,7 +96,7 @@ class DCEC(object):
         print('...Pretraining...')
         self.cae.compile(optimizer=optimizer, loss=tf.keras.losses.CosineSimilarity())
         from keras.callbacks import CSVLogger
-        csv_logger = CSVLogger(args.save_dir + '/pretrain_log.csv')
+        csv_logger = CSVLogger(save_dir + '/pretrain_log.csv')
 
         # begin training
         t0 = time()
@@ -209,7 +209,7 @@ class DCEC(object):
                 # evaluate the clustering performance
                 self.y_pred = q.argmax(1)
                 self.y_pred = self.y_pred.astype(np.int32)
-                
+
                 if y is not None:
                     acc = np.round(metrics.acc(y, self.y_pred), 5)
                     nmi = np.round(metrics.nmi(y, self.y_pred), 5)
@@ -222,8 +222,8 @@ class DCEC(object):
                 # check stop criterion
                 delta_label = np.sum(self.y_pred != y_pred_last).astype(np.float32) / self.y_pred.shape[0]
                 y_pred_last = np.copy(self.y_pred)
+                print('delta_label ', delta_label, '< tol ', tol)
                 if ite > 0 and delta_label < tol:
-                    print('delta_label ', delta_label, '< tol ', tol)
                     print('Reached tolerance threshold. Stopping training.')
                     logfile.close()
                     break
@@ -246,6 +246,7 @@ class DCEC(object):
                 loss = self.model.train_on_batch(x=x_, y=[y_, x_])
                 index += 1
 
+            print(f'observed losses {loss}, labels {self.model.metrics_names}')
             del x_
             del y_
 
@@ -268,7 +269,7 @@ class DCEC(object):
         print('Clustering time:', t2 - t1)
         print('Total time:     ', t2 - t0)
 
-    def init_cae(self, batch_size, cae_weights, save_dir, x):
+    def init_cae(self, batch_size, cae_weights=None, save_dir=None, x=None):
         t0 = time()
         if not self.pretrained and cae_weights is None:
             print('...pretraining CAE using default hyper-parameters:')

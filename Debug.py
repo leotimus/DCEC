@@ -1,3 +1,5 @@
+import keras.losses
+
 import reader.SequenceReader as sr
 from DCEC import DCEC
 from datasets import load_fasta, get_sequence_samples
@@ -41,5 +43,28 @@ def training_full_20k():
         dcec.fit(x, y=y, tol=0.001, maxiter=200, update_interval=5, save_dir='results/debug2', batch_size=256)
 
 
+def loss(y_true, y_pred):
+    mse = keras.losses.MSE(y_true, y_pred)
+    kld = keras.losses.KLD(y_true, y_pred)
+    # mse_out = tf.reduce_sum(mse(y_true, y_pred))
+    # kld_out = tf.reduce_sum(kld(y_true, y_pred))
+    print(f'get mse {mse}, kld {kld}, returning the sum {kld * 0.1 + mse * 1}')
+    # return kld_out * 0.1 + mse_out * 1, kld_out, mse
+    return mse
+
+
+def dcec_2k_1k():
+    x = get_sequence_samples(n_samples=2000)
+    y = None
+    contig_len = 1000
+    optimizer = 'adam'
+    with tf.device('/cpu:0'):
+        dcec = DCEC(filters=[32, 64, 128, 60], n_clusters=60, contig_len=contig_len)
+        # dcec.compile(loss=['kld', 'mse'], loss_weights=[0.1, 1], optimizer=optimizer)
+        dcec.compile(loss=loss, optimizer=optimizer)
+        dcec.init_cae(batch_size=256, save_dir='results/tmp', x=x)
+        dcec.fit(x, y=y, tol=0.001, maxiter=20, update_interval=5, save_dir='results/tmp', batch_size=256)
+
+
 if __name__ == "__main__":
-    write_bin_samples()
+    dcec_2k_1k()
