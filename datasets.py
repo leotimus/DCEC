@@ -68,10 +68,34 @@ def get_sequence_samples(n_samples=None):
     fastaFile = "/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta"
     contigs = sr.readContigs(fastaFile, numberOfSamples=n_samples)
     print(f'Parsed {len(contigs.keys())} contigs')
+    
+    binList = get_bin_sequence(list(contigs.keys()))
+    
     lst = list(contigs.values())
-    return lst
+    return lst, binList
 
-
+def get_bin_sequence(contigKeys):
+    binlist = []
+    binValuelist = []
+    
+    originalList = np.loadtxt("/share_data/cami_low/gsa_mapping_header.binning", delimiter='\t', dtype=str, skiprows=(1))
+    originalList = originalList[:,[0,1]] 
+    
+    for i in contigKeys:
+        binID = np.where(originalList[:,0] == i)
+        bin = originalList[binID]
+        binValue = bin[0][1]
+        
+        if binValuelist.count(binValue) > 0:
+            binNumber = binValuelist.index(binValue)
+        else:
+            binValuelist.append(binValue)
+            binNumber = binValuelist.index(binValue)
+            
+        binlist.append(binNumber)
+        
+    return binlist 
+    
 def myMapCharsToInteger(data):
   # define universe of possible input values
   seq = 'ACTGO'

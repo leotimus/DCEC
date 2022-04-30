@@ -5,7 +5,7 @@ import tensorflow as tf
 from tensorflow import keras
 from sklearn.cluster import KMeans
 import metrics
-from ConvAE2 import CAE2, DiceLoss, dice_coef_loss
+from ConvAE2 import CAE2
 from reader.DCECDataGenerator import DCECDataGenerator
 from reader.DataGenerator import DataGenerator
 from datasets import get_sequence_samples, decode
@@ -103,7 +103,7 @@ class DCEC(object):
 
     def pretrain(self, x, batch_size=256, epochs=1, optimizer='adam', save_dir='results/temp'):
         print('...Pretraining...')
-        self.cae.compile(optimizer=optimizer, loss=dice_coef_loss)
+        self.cae.compile(optimizer=optimizer, loss='mse')
         from keras.callbacks import CSVLogger
         csv_logger = CSVLogger(args.save_dir + '/pretrain_log.csv')
 
@@ -152,7 +152,7 @@ class DCEC(object):
         weight = q ** 2 / q.sum(0)
         return (weight.T / weight.sum(1)).T
 
-    def compile(self, loss=['kld', dice_coef_loss], loss_weights=[1, 1], optimizer='adam'):
+    def compile(self, loss=['kld', 'mse'], loss_weights=[1, 1], optimizer='adam'):
         self.model.compile(loss=loss, loss_weights=loss_weights, optimizer=optimizer)
 
     def fit(self, x, y=None, batch_size=256, maxiter=2e4, tol=1e-3,
@@ -208,7 +208,7 @@ class DCEC(object):
                         q = np.append(q, q_, axis=0)
                     if (p_index + 1) * batch_size >= size:
                         complete = True
-                        del q_
+                        # del q_
                         del x_
                     else:
                         p_index += 1
@@ -219,14 +219,14 @@ class DCEC(object):
                 self.y_pred = q.argmax(1)
                 self.y_pred = self.y_pred.astype(np.int32)
                 
-               # if y is not None:
-                #    acc = np.round(metrics.acc(y, self.y_pred), 5)
-                #    nmi = np.round(metrics.nmi(y, self.y_pred), 5)
-                #    ari = np.round(metrics.ari(y, self.y_pred), 5)
-                #    loss = np.round(loss, 5)
-                #    logdict = dict(iter=ite, acc=acc, nmi=nmi, ari=ari, L=loss[0], Lc=loss[1], Lr=loss[2])
-                #    logwriter.writerow(logdict)
-                #    print('Iter', ite, ': Acc', acc, ', nmi', nmi, ', ari', ari, '; loss=', loss)
+                if y is not None:
+                    acc = np.round(metrics.acc(y, self.y_pred), 5)
+                    nmi = np.round(metrics.nmi(y, self.y_pred), 5)
+                    ari = np.round(metrics.ari(y, self.y_pred), 5)
+                    loss = np.round(loss, 5)
+                    logdict = dict(iter=ite, acc=acc, nmi=nmi, ari=ari, L=loss[0], Lc=loss[1], Lr=loss[2])
+                    logwriter.writerow(logdict)
+                    print('Iter', ite, ': Acc', acc, ', nmi', nmi, ', ari', ari, '; loss=', loss)
 
                 # check stop criterion
                 delta_label = np.sum(self.y_pred != y_pred_last).astype(np.float32) / self.y_pred.shape[0]
@@ -253,7 +253,8 @@ class DCEC(object):
                 x_ = np.array(x_)
                 x_ = x_.reshape(-1, self.contig_len, 4).astype(np.float32)
                 y_ = p[index * batch_size:(index + 1) * batch_size]
-                loss = self.model.train_on_batch(x=x_, y=[y_, x_])
+            
+                loss = self.model.train_on_batch(x=x_, y=[y_,x_])
                 index += 1
 
             print(f'observed losses {loss}.')
@@ -318,8 +319,12 @@ if __name__ == "__main__":
         os.makedirs(args.save_dir)
 
     # x = get_sequence_samples(n_samples=1000)
-    x = get_sequence_samples()
-    y = None
+    x, y = get_sequence_samples()
+    #y = None
+    
+    y = np.array(y).astype(np.int64)
+
+    print("Number of bins: ", len(set(y)))
 
     # prepare the DCEC model
     # shape_ = x.shape[1:]
@@ -330,7 +335,7 @@ if __name__ == "__main__":
 
     # begin clustering.
     optimizer = 'adam'
-    dcec.compile(loss=['kld', dice_coef_loss], loss_weights=[args.gamma, 1], optimizer=optimizer)
+    dcec.compile(loss=['kld', 'mse'], loss_weights=[args.gamma, 1], optimizer=optimizer)
     # Step 1: pretrain if necessary
     dcec.init_cae(batch_size=args.batch_size, cae_weights=args.cae_weights, save_dir=args.save_dir, x=x)
     # Step 2: train with cpu
