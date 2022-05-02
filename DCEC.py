@@ -74,7 +74,7 @@ class ClusteringLayer(keras.layers.Layer):
 
 
 class DCEC(object):
-    def __init__(self, filters=[32, 64, 128, 37, 256], n_clusters=37, contig_len=1008):
+    def __init__(self, filters=[32, 64, 128, 60, 256], n_clusters=60, contig_len=1008):
 
         super(DCEC, self).__init__()
 
@@ -105,7 +105,7 @@ class DCEC(object):
         print('...Pretraining...')
         self.cae.compile(optimizer=optimizer, loss='mse')
         from keras.callbacks import CSVLogger
-        csv_logger = CSVLogger(args.save_dir + '/pretrain_log.csv')
+        csv_logger = CSVLogger(save_dir + '/pretrain_log.csv')
 
         # begin training
         t0 = time()
@@ -299,7 +299,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='train')
     parser.add_argument('dataset', default='mnist', choices=['mnist', 'usps', 'mnist-test', 'fasta'])
-    parser.add_argument('--n_clusters', default=37, type=int)
+    parser.add_argument('--n_clusters', default=60, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--maxiter', default=2e4, type=int)
     parser.add_argument('--gamma', default=0.1, type=float,
@@ -329,7 +329,7 @@ if __name__ == "__main__":
     # prepare the DCEC model
     # shape_ = x.shape[1:]
     # dcec = DCEC(input_shape=shape_, filters=[32, 64, 128, 10], n_clusters=args.n_clusters)
-    dcec = DCEC(filters=[32, 64, 128, 37, 256], n_clusters=args.n_clusters, contig_len=args.contig_len)
+    dcec = DCEC(filters=[32, 64, 128, 60, 256], n_clusters=args.n_clusters, contig_len=args.contig_len)
     keras.utils.plot_model(dcec.model, to_file=args.save_dir + '/dcec_model.png', show_shapes=True)
     dcec.model.summary()
 

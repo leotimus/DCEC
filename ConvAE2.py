@@ -31,7 +31,7 @@ def CAE1(filters=[32, 64, 128, 30, 256], contig_len=1000):
     model.summary()
     return model
 
-def CAE2(filters=[32, 64, 128, 30, 256], contig_len=1008):
+def CAE2(filters=[32, 64, 128, 60, 256], contig_len=1008):
     input_shape = (contig_len, 4)
     model = keras.models.Sequential()
     model.add(keras.layers.Masking(mask_value=-1., input_shape=input_shape))
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description='train')
-    parser.add_argument('--n_clusters', default=37, type=int)
+    parser.add_argument('--n_clusters', default=60, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--epochs', default=200, type=int)
     parser.add_argument('--save_dir', default='results/temp1', type=str)
