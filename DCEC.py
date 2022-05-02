@@ -105,7 +105,7 @@ class DCEC(object):
         print('...Pretraining...')
         self.cae.compile(optimizer=optimizer, loss='mse')
         from keras.callbacks import CSVLogger
-        csv_logger = CSVLogger(args.save_dir + '/pretrain_log.csv')
+        csv_logger = CSVLogger(save_dir + '/pretrain_log.csv')
 
         # begin training
         t0 = time()
