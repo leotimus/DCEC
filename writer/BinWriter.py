@@ -4,21 +4,20 @@ import os
 from reader.SequenceReader import FastaEntry
 
 
-def mapBinAndContigNames(fastaDict, clusters):
-    global binsDict
-    contigNames = list(fastaDict.keys())
-    binsDict = {}
+def map_bin_by_contig_name(fasta_dict, clusters):
+    global bins_dict
+    contig_names = list(fasta_dict.keys())
+    bins_dict = {}
     for idx, val in enumerate(clusters):
-        clusterName = str(val)
-        if binsDict.get(clusterName) is None:
-            binsDict[clusterName] = []
-        else:
-            contigName = contigNames[idx]
-            binsDict[clusterName].append(contigName)
-    return binsDict
+        cluster_name = str(val)
+        if bins_dict.get(cluster_name) is None:
+            bins_dict[cluster_name] = []
+        contig_name = contig_names[idx]
+        bins_dict[cluster_name].append(contig_name)
+    return bins_dict
 
 
-def writeBins(directory, bins, fastadict, compressed=False, maxbins=250, minsize=0):
+def write_bins(directory, bins, fastadict, compressed=False, maxbins=250, minsize=0):
     """Writes bins as FASTA files in a directory, one file per bin.
 
     Inputs:
