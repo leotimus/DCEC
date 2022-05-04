@@ -15,32 +15,32 @@ def print_gpu_info():
 
 def write_bin_samples():
     x = get_sequence_samples()
-    dcec = DCEC(filters=[32, 64, 128, 60], n_clusters=60, contig_len=1000)
-    dcec.model.load_weights("results/tmp2/dcec_model_final.h5")
+    dcec = DCEC(filters=[32, 64, 128, 60], n_clusters=60, contig_len=20000)
+    dcec.model.load_weights("results/oneLayer/dcec_model_final.h5")
     clusters = dcec.predict(x, batch_size=256)
 
     fasta = "/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta"
     # fastaDict = sr.readContigs(fasta, numberOfSamples=10000, onlySequence=False)
     fastaDict = sr.readContigs(fasta, onlySequence=False)
     binsDict = mapBinAndContigNames(fastaDict, clusters)
-    writeBins("results/dbg2/bins", bins=binsDict, fastadict=fastaDict)
+    writeBins("results/oneLayer/bins", bins=binsDict, fastadict=fastaDict)
     print(f'predict size: ', len(clusters))
 
 
 def training_full_20k():
     x = get_sequence_samples()
     y = None
-    dcec = DCEC(filters=[32, 64, 128, 10], n_clusters=60, contig_len=20000)
+    dcec = DCEC(filters=[32, 64, 128, 60], n_clusters=60, contig_len=20000)
     # begin clustering.
     optimizer = 'adam'
     dcec.compile(loss=['kld', 'mse'], loss_weights=[0.1, 1], optimizer=optimizer)
     # Step 1: pretrain if necessary
     dcec.init_cae(batch_size=256,
-                  cae_weights='results/tmp2/fasta-pretrain-model-10.h5',
-                  save_dir='results/dbg2/', x=x)
+                  cae_weights=None,
+                  save_dir='results/dbg4', x=x)
     # Step 2: train with cpu
     with tf.device('/cpu:0'):
-        dcec.fit(x, y=y, tol=0.001, maxiter=200, update_interval=5, save_dir='results/dbg2', batch_size=256)
+        dcec.fit(x, y=y, tol=0.001, maxiter=200, update_interval=5, save_dir='results/dbg4', batch_size=256)
 
 
 def loss(y_true, y_pred):
@@ -56,15 +56,15 @@ def loss(y_true, y_pred):
 def dcec_2k_1k():
     x = get_sequence_samples(n_samples=2000)
     y = None
-    contig_len = 1000
+    contig_len = 20000
     optimizer = 'adam'
     with tf.device('/cpu:0'):
         dcec = DCEC(filters=[32, 64, 128, 60], n_clusters=60, contig_len=contig_len)
         # dcec.compile(loss=['kld', 'mse'], loss_weights=[0.1, 1], optimizer=optimizer)
         dcec.compile(loss=loss, optimizer=optimizer)
-        dcec.init_cae(batch_size=256, save_dir='results/tmp2', x=x)
-        dcec.fit(x, y=y, tol=0.001, maxiter=20, update_interval=5, save_dir='results/tmp2', batch_size=256)
+        dcec.init_cae(batch_size=256, save_dir='results/oneLayer', x=x)
+        dcec.fit(x, y=y, tol=0.001, maxiter=20, update_interval=5, save_dir='results/oneLayer', batch_size=256)
 
 
 if __name__ == "__main__":
-    write_bin_samples()
+    dcec_2k_1k()
