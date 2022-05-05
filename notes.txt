@@ -5,9 +5,18 @@ conda activate tools
 2. convert to bin process list
 ~/Projects/amber/src/utils/convert_fasta_bins_to_biobox_format.py ~/Projects/DCEC/results/fasta/bins/*.fna -o dcec_amber/dcec-bins.tsv
 ~/Projects/amber/src/utils/convert_fasta_bins_to_biobox_format.py ~/Projects/DCEC/results/debug1/bins/*.fna -o dcec_amber/dcec-bins.tsv
-3. execute amber
-amber.py -g gsa_mapping_with_length.binning  dcec_amber/dcec-bins.tsv -l DCEC -o dcec_amber/validation1
 
+~/Projects/amber/src/utils/convert_fasta_bins_to_biobox_format.py ~/Projects/DCEC/results/debug1/bins/*.fna -o dcec_amber/dcec-bins.tsv
+
+
+
+/share_data/amber/src/utils/convert_fasta_bins_to_biobox_format.py  /home/jpolas20/Source/DCEC_project/DCEC/results/debug1/bins/*.fna -o /home/jpolas20/Source/DCEC_project/DCEC/dcec_amber/dcec-bins.tsv
+
+
+3. execute amber
+amber.py -g /share_data/cami_low/gsa_mapping_with_length.binning  /home/jpolas20/Source/DCEC_project/DCEC/dcec_amber/dcec-bins.tsv -l DCEC -o /home/jpolas20/Source/DCEC_project/DCEC/dcec_amber/validation1
+
+amber.py -g /share_data/cami_low/gsa_mapping_with_length.binning  /home/jpolas20/Source/DCEC_project/DCEC/dcec_amber/dcec-bins.tsv -l DCEC -o /home/jpolas20/Source/DCEC_project/DCEC/dcec_amber/validation7
 
 20k len & 200 iter
 Current iteration 196.
