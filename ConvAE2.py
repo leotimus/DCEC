@@ -31,7 +31,7 @@ def CAE1(filters=[32, 64, 128, 30, 256], contig_len=1000):
     model.summary()
     return model
 
-def CAE2(filters=[32, 64, 128, 60, 256], contig_len=1008):
+def CAE2(filters=[32, 64, 128, 60, 256], contig_len=128):
     input_shape = (contig_len, 4)
     model = keras.models.Sequential()
     model.add(keras.layers.Masking(mask_value=-1., input_shape=input_shape))
@@ -58,8 +58,8 @@ def CAE2(filters=[32, 64, 128, 60, 256], contig_len=1008):
 
     model.add(keras.layers.Conv1DTranspose(filters[1], 5, strides=2, padding='same', activation='relu', name='deconv2'))
 
-    model.add(keras.layers.Conv1DTranspose(filters[0], 5, strides=2, padding='same', activation='sigmoid', name='deconv1'))
-    model.add(keras.layers.Conv1DTranspose(input_shape[1], 5, strides=2, padding='same', name='deconv4'))
+    model.add(keras.layers.Conv1DTranspose(filters[0], 5, strides=2, padding='same', activation='relu', name='deconv1'))
+    model.add(keras.layers.Conv1DTranspose(input_shape[1], 5, strides=2, padding='same', activation='sigmoid', name='deconv4'))
     model.summary()
     return model
 
@@ -112,8 +112,9 @@ if __name__ == "__main__":
     model.save(args.save_dir + '/fasta-pretrain-model-%d.h5' % args.epochs)
 
     # extract features
-    feature_model = keras.models(inputs=model.input, outputs=model.get_layer(name='embedding').output)
+    feature_model = keras.models(inputs=model.input, outputs=model.get_layer(name='deconv4').output)
     features = feature_model.predict(x)
+    print(features)
     print('feature shape=', features.shape)
 
     # use features for clustering

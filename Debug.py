@@ -1,6 +1,7 @@
 import reader.SequenceReader as sr
 import numpy as np
 from DCEC import DCEC
+from ConvAE2 import CAE2
 from datasets import load_fasta, get_sequence_samples
 import tensorflow as tf
 from writer.BinWriter import writeBins, mapBinAndContigNames
@@ -44,6 +45,17 @@ def training_full_20k():
     with tf.device('/cpu:0'):
         dcec.fit(x, y=y, tol=0.001, maxiter=200, update_interval=5, save_dir='results/debug2', batch_size=256)
 
+def verify_cae():
+    cae = CAE2(filters=[32, 64, 128, 60, 256], contig_len=128)
+    cae.load_weights("results/temp/pretrain_cae_model.h5")
+    x,y = get_sequence_samples(n_samples=2000)
+    from tensorflow import keras
+    # feature_model = keras.models(inputs=cae.input, outputs=cae.get_layer(name='embedding').output)
+    from reader.DataGenerator import DataGenerator
+    cae_generator = DataGenerator(x, batch_size=256, contig_len=128)
+    decodes = cae.predict(x=cae_generator)
+    return decodes
 
 if __name__ == "__main__":
-    training_full_20k()
+    decodes = verify_cae()
+    print(decodes)

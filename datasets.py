@@ -120,13 +120,13 @@ def setCorrectSequenceLength(n, size):
 def setSequenceLength(n, size):
     if len(n) > size:
         return n[:size]
-    elif len(n) < size:
-        padding = np.array([[-1., -1., -1., -1.]] *(size - len(n)))
-        n = np.concatenate((n, padding), axis=0)
+    #elif len(n) < size:
+    #    padding = np.array([[-1., -1., -1., -1.]] *(size - len(n)))
+    #    n = np.concatenate((n, padding), axis=0)
     return n
 
 
-def decode(n, contig_len=20000):
+def decode(n, contig_len=128):
   """
   decoded = bytes(n).decode()
   most_common_nucleotide = max(set(decoded), key=decoded.count)

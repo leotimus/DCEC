@@ -101,21 +101,24 @@ class DCEC(object):
         intersection = K.sum(K.abs(y_true * y_pred), axis=-1)
         return (2. * intersection + smooth) / (K.sum(K.square(y_true),-1) + K.sum(K.square(y_pred),-1) + smooth)
 
-    def pretrain(self, x, batch_size=256, epochs=1, optimizer='adam', save_dir='results/temp'):
+    def pretrain(self, x, batch_size=256, epochs=20, optimizer='adam', save_dir='results/temp'):
         print('...Pretraining...')
-        self.cae.compile(optimizer=optimizer, loss='mse')
+        cosine_loss = tf.keras.losses.CosineSimilarity(axis=1)
+        self.cae.compile(optimizer=optimizer, loss=tf.keras.losses.CosineSimilarity())
+        print(self.cae.loss)
         from keras.callbacks import CSVLogger
-        csv_logger = CSVLogger(save_dir + '/pretrain_log.csv')
+        csv_logger = CSVLogger(args.save_dir + '/pretrain_log.csv')
 
         # begin training
         t0 = time()
         cae_generator = DataGenerator(x, batch_size=batch_size, contig_len=self.contig_len)
         self.cae.fit(x=cae_generator, batch_size=batch_size, epochs=epochs, callbacks=[csv_logger])
         print('Pretraining time: ', time() - t0)
-        self.cae.save(save_dir + '/pretrain_cae_model.h5')
+        self.cae.save(args.save_dir + '/pretrain_cae_model.h5')
         print(f'Pretrained weights are saved to {save_dir}/pretrain_cae_model.h5, reload weights')
         self.cae.load_weights(save_dir + '/pretrain_cae_model.h5')
         self.pretrained = True
+        
 
     def load_weights(self, weights_path):
         self.model.load_weights(weights_path)
@@ -152,7 +155,7 @@ class DCEC(object):
         weight = q ** 2 / q.sum(0)
         return (weight.T / weight.sum(1)).T
 
-    def compile(self, loss=['kld', 'mse'], loss_weights=[1, 1], optimizer='adam'):
+    def compile(self, loss=['kld', tf.keras.losses.CosineSimilarity(axis=1)], loss_weights=[1, 1], optimizer='adam'):
         self.model.compile(loss=loss, loss_weights=loss_weights, optimizer=optimizer)
 
     def fit(self, x, y=None, batch_size=256, maxiter=2e4, tol=1e-3,
@@ -185,6 +188,7 @@ class DCEC(object):
         loss = [0, 0, 0]
         index = 0
         size = len(x)
+        print(self.model.loss)
         # train_generator = DCECDataGenerator(x=x, batch_size=batch_size, contig_len=self.contig_len)
         # q, _ = self.model.predict(train_generator, verbose=0)
         # p = self.target_distribution(q)
@@ -319,7 +323,7 @@ if __name__ == "__main__":
         os.makedirs(args.save_dir)
 
     # x = get_sequence_samples(n_samples=1000)
-    x, y = get_sequence_samples()
+    x, y = get_sequence_samples(n_samples=2000)
     #y = None
     
     y = np.array(y).astype(np.int64)
@@ -335,7 +339,7 @@ if __name__ == "__main__":
 
     # begin clustering.
     optimizer = 'adam'
-    dcec.compile(loss=['kld', 'mse'], loss_weights=[args.gamma, 1], optimizer=optimizer)
+    dcec.compile(loss=['kld', tf.keras.losses.CosineSimilarity(axis=1)], loss_weights=[args.gamma, 1], optimizer=optimizer)
     # Step 1: pretrain if necessary
     dcec.init_cae(batch_size=args.batch_size, cae_weights=args.cae_weights, save_dir=args.save_dir, x=x)
     # Step 2: train with cpu
