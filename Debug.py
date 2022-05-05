@@ -15,7 +15,7 @@ def print_gpu_info():
 
 def write_bin_samples():
     x = get_sequence_samples()
-    dcec = DCEC(filters=[32, 64, 128, 60, 256], n_clusters=60, contig_len=1008)
+    dcec = DCEC(filters=[32, 64, 128, 60, 256], n_clusters=60, contig_len=20000)
     dcec.model.load_weights("results/temp3/dcec_model_60.h5")
     clusters = dcec.predict(x, batch_size=256)
 
