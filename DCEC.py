@@ -92,7 +92,7 @@ class DCEC(object):
         self.model = keras.models.Model(inputs=self.cae.input,
                                         outputs=[self.clustering_layer, self.cae.output])
 
-    def pretrain(self, x, batch_size=256, epochs=1, optimizer='adam', save_dir='results/temp'):
+    def pretrain(self, x, batch_size=256, epochs=10, optimizer='adam', save_dir='results/temp'):
         print('...Pretraining...')
         self.cae.compile(optimizer=optimizer, loss='mse')
         from keras.callbacks import CSVLogger
@@ -297,7 +297,7 @@ if __name__ == "__main__":
     parser.add_argument('--tol', default=0.001, type=float)
     parser.add_argument('--cae_weights', default=None, help='This argument must be given')
     parser.add_argument('--save_dir', default='results/temp')
-    parser.add_argument('--contig_len', default=1000, type=int)
+    parser.add_argument('--contig_len', default=128, type=int)
     parser.add_argument('--n_samples', default=None, type=int)
     args = parser.parse_args()
     print(args)

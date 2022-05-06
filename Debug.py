@@ -58,16 +58,17 @@ def dcec_2k_1k():
 
 
 def verify_cae():
-    cae = CAE2(filters=[32, 64, 128, 60], contig_len=20000)
-    cae.load_weights("results/debug2/pretrain_cae_model.h5")
+    cae = CAE2(filters=[32, 64, 128, 60], contig_len=128)
+    cae.load_weights("results/temp/pretrain_cae_model.h5")
     x = get_sequence_samples(n_samples=2000)
     from tensorflow import keras
     # feature_model = keras.models(inputs=cae.input, outputs=cae.get_layer(name='embedding').output)
     from reader.DataGenerator import DataGenerator
-    cae_generator = DataGenerator(x, batch_size=256, contig_len=20000)
+    cae_generator = DataGenerator(x, batch_size=256, contig_len=128)
     decodes = cae.predict(x=cae_generator)
     return decodes
 
 
 if __name__ == "__main__":
     verify_cae()
+    print(verify_cae())
