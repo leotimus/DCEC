@@ -94,7 +94,7 @@ class DCEC(object):
 
     def pretrain(self, x, batch_size=256, epochs=1, optimizer='adam', save_dir='results/temp'):
         print('...Pretraining...')
-        self.cae.compile(optimizer=optimizer, loss=tf.keras.losses.CosineSimilarity())
+        self.cae.compile(optimizer=optimizer, loss='mse')
         from keras.callbacks import CSVLogger
         csv_logger = CSVLogger(save_dir + '/pretrain_log.csv')
 
@@ -123,7 +123,7 @@ class DCEC(object):
             x_ = x[p_index * batch_size:(p_index + 1) * batch_size]
             x_ = [decode(i, self.contig_len) for i in x_]
             x_ = np.array(x_)
-            x_ = x_.reshape(-1, self.contig_len, 4).astype(np.float32)
+            x_ = x_.reshape(-1, self.contig_len, 1).astype(np.float32)
             q_, tmp = self.model.predict(x=x_, batch_size=None, verbose=0)
             del tmp
             if q is None:
@@ -190,7 +190,7 @@ class DCEC(object):
                     x_ = x[p_index * batch_size:(p_index + 1) * batch_size]
                     x_ = [decode(i, self.contig_len) for i in x_]
                     x_ = np.array(x_)
-                    x_ = x_.reshape(-1, self.contig_len, 4).astype(np.float32)
+                    x_ = x_.reshape(-1, self.contig_len, 1).astype(np.float32)
                     q_, tmp = self.model.predict(x=x_, batch_size=None, verbose=0)
                     del tmp
                     if q is None:
@@ -233,7 +233,7 @@ class DCEC(object):
                 x_ = x[index * batch_size::]
                 x_ = [decode(i, self.contig_len) for i in x_]
                 x_ = np.array(x_)
-                x_ = x_.reshape(-1, self.contig_len, 4).astype(np.float32)
+                x_ = x_.reshape(-1, self.contig_len, 1).astype(np.float32)
                 y_ = p[index * batch_size::]
                 loss = self.model.train_on_batch(x=x_, y=[y_, x_])
                 index = 0
@@ -241,7 +241,7 @@ class DCEC(object):
                 x_ = x[index * batch_size:(index + 1) * batch_size]
                 x_ = [decode(i, self.contig_len) for i in x_]
                 x_ = np.array(x_)
-                x_ = x_.reshape(-1, self.contig_len, 4).astype(np.float32)
+                x_ = x_.reshape(-1, self.contig_len, 1).astype(np.float32)
                 y_ = p[index * batch_size:(index + 1) * batch_size]
                 loss = self.model.train_on_batch(x=x_, y=[y_, x_])
                 index += 1
