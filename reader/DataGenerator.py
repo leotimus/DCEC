@@ -4,7 +4,7 @@ from datasets import decode
 
 
 class DataGenerator(tf.keras.utils.Sequence):
-    def __init__(self, x, batch_size=32, contig_len=1000):
+    def __init__(self, x, batch_size=32, contig_len=128):
         self.batch_size = batch_size
         self.x = x
         self.on_epoch_end()
@@ -35,5 +35,5 @@ class DataGenerator(tf.keras.utils.Sequence):
         for i, contig in enumerate(x_temp):
             X.append(decode(contig, contig_len=self.contig_len))
         X = np.array(X)
-        X = X.reshape(-1, self.contig_len, 4).astype('float32')
+        X = X.reshape(-1, self.contig_len, 1).astype('float32')
         return X, X
