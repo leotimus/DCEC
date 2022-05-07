@@ -130,7 +130,6 @@ def decode(n, contig_len=1008):
   #encodings = tensorflow.keras.utils.to_categorical(myMapCharsToInteger(decoded), num_classes=4)
   encodings = [encode_to_ordinal[x] for x in decoded]
   encodings = np.resize(encodings, contig_len)
-  
   #encodings = setSequenceLen(encodings, contig_len)
   #print(encodings)
   #encodings = setSequenceLength(encodings, contig_len)

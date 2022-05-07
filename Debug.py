@@ -15,16 +15,16 @@ def print_gpu_info():
 
 
 def write_bin_samples():
-    x = get_sequence_samples()
-    dcec = DCEC(filters=[32, 64, 128, 60], n_clusters=60, contig_len=20000)
-    dcec.model.load_weights("results/debug2/dcec_model_final.h5")
+    x = get_sequence_samples(20000)
+    dcec = DCEC(filters=[32, 64, 128, 60], n_clusters=60, contig_len=10000)
+    dcec.model.load_weights("results/tmp2/dcec_model_final.h5")
     clusters = dcec.predict(x, batch_size=256)
 
     fasta = "/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta"
     # fastaDict = sr.readContigs(fasta, numberOfSamples=10000, onlySequence=False)
     fastaDict = sr.readContigs(fasta, onlySequence=False)
     binsDict = map_bin_by_contig_name(fastaDict, clusters)
-    write_bins("results/debug2/bins", bins=binsDict, fastadict=fastaDict)
+    write_bins("results/tmp2/bins", bins=binsDict, fastadict=fastaDict)
     print(f'predict size: ', len(clusters))
 
 
@@ -44,31 +44,32 @@ def training_full_20k():
 
 
 def dcec_2k_1k():
-    x = get_sequence_samples(n_samples=2000)
+    x = get_sequence_samples(n_samples=20000)
     y = None
-    contig_len = 1000
+    contig_len = 10000
     optimizer = 'adam'
     with tf.device('/cpu:0'):
         dcec = DCEC(filters=[32, 64, 128, 60], n_clusters=60, contig_len=contig_len)
         dcec.compile(loss=['kld', 'mse'], loss_weights=[0.1, 1], optimizer=optimizer)
-        tf.keras.utils.plot_model(dcec.model, to_file='results/tmp/dcec_model.png', show_shapes=True)
+        tf.keras.utils.plot_model(dcec.model, to_file='results/tmp2/dcec_model.png', show_shapes=True)
         # dcec.compile(loss=loss, optimizer=optimizer)
-        dcec.init_cae(batch_size=256, save_dir='results/tmp', x=x)
-        dcec.fit(x, y=y, tol=0.001, maxiter=20, update_interval=5, save_dir='results/tmp', batch_size=256)
+        dcec.init_cae(batch_size=256,
+                  cae_weights=None, save_dir='results/tmp2', x=x)
+        dcec.fit(x, y=y, tol=0.001, maxiter=20, update_interval=5, save_dir='results/tmp2', batch_size=256)
 
 
 def verify_cae():
-    cae = CAE2(filters=[32, 64, 128, 60], contig_len=1008)
-    cae.load_weights("results/temp/pretrain_cae_model.h5")
-    x = get_sequence_samples(n_samples=2000)
+    cae = CAE2(filters=[32, 64, 128, 60], contig_len=10000)
+    cae.load_weights("results/tmp2/pretrain_cae_model.h5")
+    x = get_sequence_samples(n_samples=20000)
     from tensorflow import keras
     # feature_model = keras.models(inputs=cae.input, outputs=cae.get_layer(name='embedding').output)
     from reader.DataGenerator import DataGenerator
-    cae_generator = DataGenerator(x, batch_size=256, contig_len=1008)
+    cae_generator = DataGenerator(x, batch_size=256, contig_len=10000)
     decodes = cae.predict(x=cae_generator)
     return decodes
 
 
 if __name__ == "__main__":
-    verify_cae()
-    print(verify_cae())
+    decodes = verify_cae()
+    print(decodes)

@@ -92,7 +92,7 @@ class DCEC(object):
         self.model = keras.models.Model(inputs=self.cae.input,
                                         outputs=[self.clustering_layer, self.cae.output])
 
-    def pretrain(self, x, batch_size=256, epochs=10, optimizer='adam', save_dir='results/temp'):
+    def pretrain(self, x, batch_size=256, epochs=100, optimizer='adam', save_dir='results/temp'):
         print('...Pretraining...')
         self.cae.compile(optimizer=optimizer, loss='mse')
         from keras.callbacks import CSVLogger
