@@ -297,7 +297,7 @@ if __name__ == "__main__":
     parser.add_argument('--tol', default=0.001, type=float)
     parser.add_argument('--cae_weights', default=None, help='This argument must be given')
     parser.add_argument('--save_dir', default='results/temp')
-    parser.add_argument('--contig_len', default=1008, type=int)
+    parser.add_argument('--contig_len', default=10000, type=int)
     parser.add_argument('--n_samples', default=None, type=int)
     args = parser.parse_args()
     print(args)
