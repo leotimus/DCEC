@@ -105,14 +105,14 @@ encode_to_ordinal = {
     'G': 0.75,
     'C': 0.5,
     'T': 0.25,
-    'O': 0.
+    '0': 0.
 }
 
 def setSequenceLen(n, size):
     if len(n) > size:
         return n[:size]
     elif len(n) < size:
-        n = n.ljust(size, "O")
+        n = n.ljust(size, "0")
     return n
 
 def decode(n, contig_len=1008):
@@ -128,6 +128,7 @@ def decode(n, contig_len=1008):
   most_common_nucleotide = max(set(decoded), key=decoded.count)
   decoded = [most_common_nucleotide if x == 'N' else x for x in decoded]
   #encodings = tensorflow.keras.utils.to_categorical(myMapCharsToInteger(decoded), num_classes=4)
+  #encodings = setSequenceLen(encodings, contig_len)
   encodings = [encode_to_ordinal[x] for x in decoded]
   encodings = np.resize(encodings, contig_len)
   #encodings = setSequenceLen(encodings, contig_len)
