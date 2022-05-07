@@ -127,9 +127,16 @@ def decode(n, contig_len=1008):
   decoded = bytes(n).decode()
   most_common_nucleotide = max(set(decoded), key=decoded.count)
   decoded = [most_common_nucleotide if x == 'N' else x for x in decoded]
+  #encodings = tensorflow.keras.utils.to_categorical(myMapCharsToInteger(decoded), num_classes=4)
   encodings = [encode_to_ordinal[x] for x in decoded]
   encodings = np.resize(encodings, contig_len)
- 
+  
+  #encodings = setSequenceLen(encodings, contig_len)
+  #print(encodings)
+  #encodings = setSequenceLength(encodings, contig_len)
+  #print(encodings)
+  #print(len(encodings))
+  
   return encodings
 
  
