@@ -64,7 +64,7 @@ def verify_cae():
     from tensorflow import keras
     # feature_model = keras.models(inputs=cae.input, outputs=cae.get_layer(name='embedding').output)
     from reader.DataGenerator import DataGenerator
-    cae_generator = DataGenerator(x, batch_size=256, contig_len=128)
+    cae_generator = DataGenerator(x, batch_size=256, contig_len=128)_
     decodes = cae.predict(x=cae_generator)
     return decodes
 

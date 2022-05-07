@@ -36,8 +36,8 @@ from reader.DataGenerator import DataGenerator
 #     model.summary()
 #     return model
 
-def CAE2(filters=[32, 64, 128, 60], contig_len=128):
-    input_shape = (128, 1)
+def CAE2(filters=[32, 64, 128, 60], contig_len=1008):
+    input_shape = (contig_len, 1)
     model = keras.models.Sequential()
     model.add(keras.layers.Masking(mask_value=-1., input_shape=input_shape))
     if input_shape[0] % 8 == 0:
