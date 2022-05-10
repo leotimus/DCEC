@@ -27,7 +27,7 @@ def CAE1(filters=[32, 64, 128, 30, 256], contig_len=1000):
     model.add(keras.layers.Reshape((int(input_shape[0] / 8), int(input_shape[1] / 4), filters[2])))
     model.add(keras.layers.Conv2DTranspose(filters[1], 3, strides=(2, 1), padding=pad3, activation='relu', name='deconv3'))
     model.add(keras.layers.Conv2DTranspose(filters[0], 5, strides=(2, 2), padding='same', activation='relu', name='deconv2'))
-    model.add(keras.layers.Conv2DTranspose(input_shape[2], 5, strides=(2, 2), padding='same', name='deconv1'))
+    model.add(keras.layers.Conv2DTranspose(input_shape[2], 5, strides=(2, 2), padding='same', activation='softmax', name='deconv1'))
     model.summary()
     return model
 
@@ -58,8 +58,8 @@ def CAE2(filters=[32, 64, 128, 60, 256], contig_len=128):
 
     model.add(keras.layers.Conv1DTranspose(filters[1], 5, strides=2, padding='same', activation='relu', name='deconv2'))
 
-    model.add(keras.layers.Conv1DTranspose(filters[0], 5, strides=2, padding='same', activation='relu', name='deconv1'))
-    model.add(keras.layers.Conv1DTranspose(input_shape[1], 5, strides=2, padding='same', activation='sigmoid', name='deconv4'))
+    model.add(keras.layers.Conv1DTranspose(filters[0], 5, strides=2, padding='same', activation='softmax', name='deconv1'))
+    model.add(keras.layers.Conv1DTranspose(input_shape[1], 5, strides=2, padding='same', name='deconv4'))
     model.summary()
     return model
 

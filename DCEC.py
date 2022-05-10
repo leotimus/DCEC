@@ -92,7 +92,7 @@ class DCEC(object):
         self.model = keras.models.Model(inputs=self.cae.input,
                                         outputs=[self.clustering_layer, self.cae.output])
         
-    def dice_coef(y_true, y_pred, smooth=1):
+    def dice_coef(self, y_true, y_pred, smooth=1):
         """
         Dice = (2*|X & Y|)/ (|X|+ |Y|)
             =  2*sum(|A*B|)/(sum(A^2)+sum(B^2))
@@ -101,10 +101,26 @@ class DCEC(object):
         intersection = K.sum(K.abs(y_true * y_pred), axis=-1)
         return (2. * intersection + smooth) / (K.sum(K.square(y_true),-1) + K.sum(K.square(y_pred),-1) + smooth)
 
+    def dice_coef_loss(self,y_true, y_pred):
+        return 1-self.dice_coef(y_true, y_pred)
+    
+    def nll_loss(self, y_true, y_pred):
+        """ Negative log likelihood. """
+
+        # keras.losses.binary_crossentropy give the mean
+        # over the last axis. we require the sum
+        return K.sum(K.binary_crossentropy(y_true, y_pred), axis=-1)
+
+    def custom_loss(self, y_true, y_pred):
+        class_loss = self.nll_loss(tf.nn.log_softmax(y_true[:, 0:4], dim=1), np.argmax(y_pred[:, 0:4]))
+
+        return class_loss
+    
+    
     def pretrain(self, x, batch_size=256, epochs=20, optimizer='adam', save_dir='results/temp'):
         print('...Pretraining...')
-        cosine_loss = tf.keras.losses.CosineSimilarity(axis=1)
-        self.cae.compile(optimizer=optimizer, loss=tf.keras.losses.CosineSimilarity())
+        cosine_loss = tf.keras.losses.CosineSimilarity()
+        self.cae.compile(optimizer=optimizer, loss=self.dice_coef_loss())
         print(self.cae.loss)
         from keras.callbacks import CSVLogger
         csv_logger = CSVLogger(args.save_dir + '/pretrain_log.csv')
@@ -155,7 +171,7 @@ class DCEC(object):
         weight = q ** 2 / q.sum(0)
         return (weight.T / weight.sum(1)).T
 
-    def compile(self, loss=['kld', tf.keras.losses.CosineSimilarity(axis=1)], loss_weights=[1, 1], optimizer='adam'):
+    def compile(self, loss=['kld', tf.keras.losses.CosineSimilarity()], loss_weights=[1, 1], optimizer='adam'):
         self.model.compile(loss=loss, loss_weights=loss_weights, optimizer=optimizer)
 
     def fit(self, x, y=None, batch_size=256, maxiter=2e4, tol=1e-3,
@@ -308,11 +324,11 @@ if __name__ == "__main__":
     parser.add_argument('--maxiter', default=2e4, type=int)
     parser.add_argument('--gamma', default=0.1, type=float,
                         help='coefficient of clustering loss')
-    parser.add_argument('--update_interval', default=140, type=int)
+    parser.add_argument('--update_interval', default=20, type=int)
     parser.add_argument('--tol', default=0.001, type=float)
     parser.add_argument('--cae_weights', default=None, help='This argument must be given')
     parser.add_argument('--save_dir', default='results/temp')
-    parser.add_argument('--contig_len', default=1008, type=int)
+    parser.add_argument('--contig_len', default=10000, type=int)
     parser.add_argument('--n_samples', default=None, type=int)
     args = parser.parse_args()
     print(args)
@@ -323,7 +339,7 @@ if __name__ == "__main__":
         os.makedirs(args.save_dir)
 
     # x = get_sequence_samples(n_samples=1000)
-    x, y = get_sequence_samples(n_samples=2000)
+    x, y = get_sequence_samples()
     #y = None
     
     y = np.array(y).astype(np.int64)
