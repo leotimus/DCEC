@@ -1,3 +1,7 @@
+import os
+
+from vamb.__main__ import calc_tnf, calc_rpkm
+
 import reader.SequenceReader as sr
 from DCEC import DCEC
 from datasets import load_fasta, get_sequence_samples
@@ -41,5 +45,17 @@ def training_full_20k():
         dcec.fit(x, y=y, tol=0.001, maxiter=200, update_interval=5, save_dir='results/debug2', batch_size=256)
 
 
+def test_tnf_abd(logfile):
+    tnfs, contignames, contiglengths = calc_tnf(outdir='results/vectors',
+                                                fastapath='/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta',
+                                                tnfpath=None, namespath=None, lengthspath=None, mincontiglength=100,
+                                                logfile=logfile)
+    rpkms = calc_rpkm(outdir='results/vectors', bampaths=['/share_data/cami_low/bams/RL_S001.bam'], rpkmpath=None,
+                      jgipath=None, mincontiglength=100, refhash=None, ncontigs=len(tnfs), minalignscore=None, minid=None,
+                      subprocesses=min(os.cpu_count(), 8), logfile=logfile)
+    print(f'tnfs shape: {tnfs.shape}, rpkms shape: {rpkms}')
+
+
 if __name__ == "__main__":
-    write_bin_samples()
+    with open('results/vectors.log', 'w') as logfile:
+        test_tnf_abd(logfile)
