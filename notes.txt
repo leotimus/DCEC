@@ -17,3 +17,29 @@ Current iteration 199.
 saving model to: results/debug2/dcec_model_final.h5
 Clustering time: 10869.382817029953
 Total time:      10869.382817029953
+
+
+AE structure
+Model: "AE"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #
+=================================================================
+ input (InputLayer)          [(None, 784)]             0
+
+ encoder_0 (Dense)           (None, 500)               392500
+
+ encoder_1 (Dense)           (None, 500)               250500
+
+ encoder_2 (Dense)           (None, 2000)              1002000
+
+ encoder_3 (Dense)           (None, 10)                20010
+
+ decoder_3 (Dense)           (None, 2000)              22000
+
+ decoder_2 (Dense)           (None, 500)               1000500
+
+ decoder_1 (Dense)           (None, 500)               250500
+
+ decoder_0 (Dense)           (None, 784)               392784
+
+=================================================================

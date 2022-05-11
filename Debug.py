@@ -3,7 +3,7 @@ import keras.losses
 import reader.SequenceReader as sr
 from ConvAE2 import CAE2
 from DCEC import DCEC
-from datasets import load_fasta, get_sequence_samples
+from datasets import load_fasta, get_sequence_samples, load_mnist, load_mnist2
 import tensorflow as tf
 from writer.BinWriter import write_bins, map_bin_by_contig_name
 
@@ -51,23 +51,49 @@ def dcec_2k_1k():
     with tf.device('/cpu:0'):
         dcec = DCEC(filters=[32, 64, 128, 60], n_clusters=60, contig_len=contig_len)
         dcec.compile(loss=['kld', 'mse'], loss_weights=[0.1, 1], optimizer=optimizer)
-        tf.keras.utils.plot_model(dcec.model, to_file='results/tmp/dcec_model.png', show_shapes=True)
+        tf.keras.utils.plot_model(dcec.model, to_file='results/tmp3/dcec_model.png', show_shapes=True)
         # dcec.compile(loss=loss, optimizer=optimizer)
-        dcec.init_cae(batch_size=256, save_dir='results/tmp', x=x)
-        dcec.fit(x, y=y, tol=0.001, maxiter=20, update_interval=5, save_dir='results/tmp', batch_size=256)
+        dcec.init_cae(batch_size=256, save_dir='results/tmp3', x=x)
+        dcec.fit(x, y=y, tol=0.001, maxiter=20, update_interval=5, save_dir='results/tmp3', batch_size=256)
 
 
 def verify_cae():
     cae = CAE2(filters=[32, 64, 128, 60], contig_len=20000)
     cae.load_weights("results/debug2/pretrain_cae_model.h5")
-    x = get_sequence_samples(n_samples=2000)
     from tensorflow import keras
     # feature_model = keras.models(inputs=cae.input, outputs=cae.get_layer(name='embedding').output)
-    from reader.DataGenerator import DataGenerator
-    cae_generator = DataGenerator(x, batch_size=256, contig_len=20000)
-    decodes = cae.predict(x=cae_generator)
+    # x = get_sequence_samples(n_samples=2000)
+    # from reader.DataGenerator import DataGenerator
+    # cae_generator = DataGenerator(x, batch_size=256, contig_len=20000)
+    # decodes = cae.predict(x=cae_generator)
+
+    x, y = load_fasta(n_samples=2000, contig_len=20000)
+    decodes = cae.predict(x=x)
     return decodes
 
 
+def verify_ae():
+    from AE import create_auto_encoder_models
+    # ae = create_auto_encoder_models(dims=[20000, 2000, 1000, 500, 100], act='relu', init='glorot_uniform')
+    ae = create_auto_encoder_models()
+    # ae.compile(optimizer='adam', loss='mse')
+    ae.compile(optimizer='adam', loss=tf.keras.losses.CosineSimilarity())
+    ae.summary()
+
+    x, y = load_fasta(n_samples=2000, contig_len=1000)
+    # from reader.DataGenerator import DataGenerator
+    # cae_generator = DataGenerator(x, batch_size=256, contig_len=20000)
+    ae.fit(x, x, epochs=10, batch_size=256)
+    ae.save('results/ae/pretrain_cae_model.h5')
+    reconstruct = ae.predict(x)
+    print(f'reconstruct size {reconstruct.shape}')
+
+
+
+
 if __name__ == "__main__":
+    # verify_ae()
+    # x, y = load_mnist()
+    # a, b = load_mnist2()
+    # dcec_2k_1k()
     verify_cae()

@@ -33,7 +33,7 @@ def create_auto_encoder_models(act='relu', init='glorot_uniform') -> Sequential:
     input_shape = (bp_len, 4)
     model: keras.models.Sequential = keras.models.Sequential()
     model.add(keras.layers.Input(shape=input_shape, name='input'))
-    model.add(keras.layers.Masking(mask_value=-1., input_shape=input_shape))
+    model.add(keras.layers.Masking(mask_value=0., input_shape=input_shape))
     model.add(keras.layers.Dense(512, activation=act, kernel_initializer=init, name='encoder_0'))
     model.add(keras.layers.Dense(256, activation=act, kernel_initializer=init, name='encoder_1'))
     model.add(keras.layers.Dense(128, activation=act, kernel_initializer=init, name='encoder_2'))

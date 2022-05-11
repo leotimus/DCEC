@@ -19,6 +19,18 @@ def load_mnist():
     return x, y
 
 
+def load_mnist2():
+    # the data, shuffled and split between train and test sets
+    from keras.datasets import mnist
+    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+    x = np.concatenate((x_train, x_test))
+    y = np.concatenate((y_train, y_test))
+    x = x.reshape((x.shape[0], -1))
+    x = np.divide(x, 255.)
+    print('MNIST samples', x.shape)
+    return x, y
+
+
 def load_usps(data_path='./data/usps'):
     import os
     if not os.path.exists(data_path+'/usps_train.jf'):
@@ -97,7 +109,7 @@ def setSequenceLength(n, size):
     if len(n) > size:
         return n[:size]
     elif len(n) < size:
-        padding = np.array([[-1., -1., -1., -1.]] *(size - len(n)))
+        padding = np.array([[0., 0., 0., 0.]] *(size - len(n)))
         n = np.concatenate((n, padding), axis=0)
     return n
 
