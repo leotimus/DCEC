@@ -64,21 +64,25 @@ def load_fasta(n_samples=None, contig_len=1000):
     return x, None
 
 
-def get_sequence_samples(n_samples=None):
-    fastaFile = "/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta"
+def get_sequence_samples(n_samples=None, min_length=10000):
+    fastaFile = "C:/Python/Datasets/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta"
     contigs = sr.readContigs(fastaFile, numberOfSamples=n_samples)
     print(f'Parsed {len(contigs.keys())} contigs')
+    newContigs = dict()
+    for key, value in contigs.items():
+        if len(value)>=min_length:
+            newContigs[key] = value
+    print(len(newContigs.keys()))
+    binList = get_bin_sequence(list(newContigs.keys()))
     
-    binList = get_bin_sequence(list(contigs.keys()))
-    
-    lst = list(contigs.values())
+    lst = list(newContigs.values())
     return lst, binList
 
 def get_bin_sequence(contigKeys):
     binlist = []
     binValuelist = []
     
-    originalList = np.loadtxt("/share_data/cami_low/gsa_mapping_header.binning", delimiter='\t', dtype=str, skiprows=(1))
+    originalList = np.loadtxt("C:/Python/Datasets/gsa_mapping_header.binning", delimiter='\t', dtype=str, skiprows=(1))
     originalList = originalList[:,[0,1]] 
     
     for i in contigKeys:

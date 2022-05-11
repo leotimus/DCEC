@@ -5,11 +5,11 @@ import tensorflow as tf
 from tensorflow import keras
 from sklearn.cluster import KMeans
 import metrics
-from ConvAE2 import CAE2
+from ConvAE2 import CAE2, dice_coef_loss
 from reader.DCECDataGenerator import DCECDataGenerator
 from reader.DataGenerator import DataGenerator
 from datasets import get_sequence_samples, decode
-
+from scipy.special import log_softmax
 
 class ClusteringLayer(keras.layers.Layer):
     """
@@ -112,15 +112,18 @@ class DCEC(object):
         return K.sum(K.binary_crossentropy(y_true, y_pred), axis=-1)
 
     def custom_loss(self, y_true, y_pred):
-        class_loss = self.nll_loss(tf.nn.log_softmax(y_true[:, 0:4], dim=1), np.argmax(y_pred[:, 0:4]))
+    
+        class_loss = self.nll_loss(tf.nn.log_softmax(y_true, axis=-1), tf.math.argmax(y_pred, axis=-1))
+        #class_loss = self.nll_loss(tf.nn.log_softmax(a),  np.argmax(b))
+        #class_loss = self.nll_loss(log_softmax(a), np.argmax(b))
 
         return class_loss
     
     
-    def pretrain(self, x, batch_size=256, epochs=20, optimizer='adam', save_dir='results/temp'):
+    def pretrain(self, x, batch_size=256, epochs=15, optimizer='adam', save_dir='results/temp'):
         print('...Pretraining...')
         cosine_loss = tf.keras.losses.CosineSimilarity()
-        self.cae.compile(optimizer=optimizer, loss=self.dice_coef_loss())
+        self.cae.compile(optimizer=optimizer, loss=tf.keras.losses.CosineSimilarity(), run_eagerly=True)
         print(self.cae.loss)
         from keras.callbacks import CSVLogger
         csv_logger = CSVLogger(args.save_dir + '/pretrain_log.csv')
@@ -198,7 +201,7 @@ class DCEC(object):
 
         # save_interval = x.shape[0] / batch_size * 5
         # save_interval = len(self.y_pred) / batch_size * 5
-        save_interval = 5
+        save_interval = 20
         print(f'Save interval: {save_interval}, Update interval: {update_interval}.')
 
         loss = [0, 0, 0]
@@ -319,7 +322,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='train')
     parser.add_argument('dataset', default='mnist', choices=['mnist', 'usps', 'mnist-test', 'fasta'])
-    parser.add_argument('--n_clusters', default=60, type=int)
+    parser.add_argument('--n_clusters', default=53, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--maxiter', default=2e4, type=int)
     parser.add_argument('--gamma', default=0.1, type=float,
@@ -334,6 +337,8 @@ if __name__ == "__main__":
     print(args)
 
     import os
+
+    
 
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
@@ -355,7 +360,7 @@ if __name__ == "__main__":
 
     # begin clustering.
     optimizer = 'adam'
-    dcec.compile(loss=['kld', tf.keras.losses.CosineSimilarity(axis=1)], loss_weights=[args.gamma, 1], optimizer=optimizer)
+    dcec.compile(loss=['kld', tf.keras.losses.CosineSimilarity()], loss_weights=[args.gamma, 1], optimizer=optimizer)
     # Step 1: pretrain if necessary
     dcec.init_cae(batch_size=args.batch_size, cae_weights=args.cae_weights, save_dir=args.save_dir, x=x)
     # Step 2: train with cpu
