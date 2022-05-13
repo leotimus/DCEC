@@ -57,5 +57,7 @@ def test_tnf_abd(logfile):
 
 
 if __name__ == "__main__":
-    with open('results/vectors.log', 'w') as logfile:
-        test_tnf_abd(logfile)
+    a = (1, 2)
+    print(a[0])
+    # with open('results/vectors.log', 'w') as logfile:
+    #     test_tnf_abd(logfile)
