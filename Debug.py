@@ -7,7 +7,7 @@ from DCEC import DCEC
 from datasets import load_fasta, get_sequence_samples
 import tensorflow as tf
 from writer.BinWriter import writeBins, mapBinAndContigNames
-
+from numpy import load
 
 def print_gpu_info():
     contigs = sr.readContigs("/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta")
@@ -46,14 +46,22 @@ def training_full_20k():
 
 
 def test_tnf_abd(logfile):
-    tnfs, contignames, contiglengths = calc_tnf(outdir='results/vectors',
-                                                fastapath='/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta',
-                                                tnfpath=None, namespath=None, lengthspath=None, mincontiglength=100,
-                                                logfile=logfile)
-    rpkms = calc_rpkm(outdir='results/vectors', bampaths=['/share_data/cami_low/bams/RL_S001.bam'], rpkmpath=None,
-                      jgipath=None, mincontiglength=100, refhash=None, ncontigs=len(tnfs), minalignscore=None, minid=None,
-                      subprocesses=min(os.cpu_count(), 8), logfile=logfile)
+    if not os.path.exists("results/vectors"):
+        tnfs, contignames, contiglengths = calc_tnf(outdir='results/vectors',
+                                                    fastapath='/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta',
+                                                    tnfpath=None, namespath=None, lengthspath=None, mincontiglength=100,
+                                                    logfile=logfile)
+        rpkms = calc_rpkm(outdir='results/vectors', bampaths=['/share_data/cami_low/bams/RL_S001.bam'], rpkmpath=None,
+                          jgipath=None, mincontiglength=100, refhash=None, ncontigs=len(tnfs), minalignscore=None, minid=None,
+                          subprocesses=min(os.cpu_count(), 8), logfile=logfile)
+    else:
+       tnfs, rpkms = load('results/vectors/tnf.npz'),  load('results/vectors/rpkm.npz')
+       tnfs, rpkms = tnfs['arr_0'], rpkms['arr_0']
     print(f'tnfs shape: {tnfs.shape}, rpkms shape: {rpkms}')
+    for i in range(len(tnfs)):
+        vec = tnfs[i]
+
+
 
 
 if __name__ == "__main__":

@@ -4,7 +4,8 @@ import tensorflow
 
 import reader.SequenceReader as sr
 import matplotlib.pyplot as plt
-
+import os
+from vamb.__main__ import calc_tnf, calc_rpkm
 
 def load_mnist():
     # the data, shuffled and split between train and test sets
@@ -62,6 +63,18 @@ def load_fasta(n_samples=None, contig_len=1000):
     x = x.reshape(-1, contig_len, 4, 1).astype('float32')
     print('FASTA:', x.shape)
     return x, None
+
+def load_tnf_abd():
+    tnfs, contignames, contiglengths = calc_tnf(outdir='results/vectors',
+                                                fastapath='/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta',
+                                                tnfpath=None, namespath=None, lengthspath=None, mincontiglength=100)
+    rpkms = calc_rpkm(outdir='results/vectors', bampaths=['/share_data/cami_low/bams/RL_S001.bam'], rpkmpath=None,
+                      jgipath=None, mincontiglength=100, refhash=None, ncontigs=len(tnfs), minalignscore=None,
+                      minid=None,
+                      subprocesses=min(os.cpu_count(), 8))
+    return tnfs, rpkms
+
+
 
 
 def get_sequence_samples(n_samples=None):
