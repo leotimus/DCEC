@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+import vamb
 from keras.datasets import mnist
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,13 +22,15 @@ def run_vae_mnist():
     x_train = x_train.astype('float32') / 255
     x_test = x_test.astype('float32') / 255
     input_shape = (original_dim,)
-    save_dir = 'results/vae'
+    save_dir = 'results/vae-mnist'
     batch_size, n_epoch = 100, 100
     n_hidden, z_dim = 256, 2
     vae = VAE1(batch_size=batch_size, n_epoch=n_epoch, n_hidden=n_hidden, z_dim=z_dim, input_shape=input_shape)
-    # vae.vae.fit(x_train, epochs=n_epoch, batch_size=batch_size, validation_data=(x_test, None))
-    # vae.vae.save_weights(f'vae_mlp_mnist_latent_dim_{z_dim}.h5')
-    vae.vae.load_weights(f'{save_dir}/vae.h5')
+
+    vae.vae.fit(x_train, epochs=n_epoch, batch_size=batch_size, validation_data=(x_test, None))
+    vae.vae.save_weights(f'vae_mlp_mnist_latent_dim_{z_dim}.h5')
+
+    # vae.vae.load_weights(f'{save_dir}/vae.h5')
     filename = f'{save_dir}/vae_mean.png'
     # display a 2D plot of the digit classes in the latent space
     z_mean, _, _ = vae.encoder.predict(x_test, batch_size=batch_size)
@@ -95,9 +98,9 @@ def run_vae_mnist():
 
 
 def run_vae_tnf_bam():
-    save_dir = 'results/vae'
-    batch_size, n_epoch = 100, 100
-    n_hidden, z_dim = 256, 2
+    save_dir, outdir = 'results/vae', 'results/vae'
+    batch_size, n_epoch = 100, 500
+    n_hidden = 64
     destroy = False
 
     Path(save_dir).mkdir(parents=True, exist_ok=True)
@@ -123,6 +126,8 @@ def run_vae_tnf_bam():
                             jgipath=None, mincontiglength=100, refhash=None, ncontigs=len(tnf), minalignscore=None,
                             minid=None,
                             subprocesses=min(os.cpu_count(), 8), logfile=logfile)
+
+    # return run_vamb_ptorch(batch_size, logfile, outdir, rpkm, tnf)
 
     mask = tnf.sum(axis=1) != 0
 
@@ -151,16 +156,38 @@ def run_vae_tnf_bam():
     else:
         zscore(rpkm, axis=0, inplace=True)
 
-    # Normalize arrays and create the Tensors (the tensors share the underlying memory)
-    # of the Numpy arrays
     zscore(tnf, axis=0, inplace=True)
-    dataset = Dataset.from_tensor_slices((tnf, rpkm))
-    # depthstensor = torch.from_numpy(rpkm)
-    # tnftensor = _torch.from_numpy(tnf)
 
-    z_dim = 19499
-    vae = VAE1(batch_size=batch_size, n_epoch=n_epoch, n_hidden=n_hidden, z_dim=z_dim, input_shape=tnf.shape, print_model=True)
-    vae.vae.fit(dataset, epochs=n_epoch, batch_size=batch_size)
+    # TODO improve
+    inputs = []
+    for idx, x in enumerate(tnf):
+        tmp = np.append(rpkm[idx], x)
+        inputs.append(tmp)
+    inputs = np.array(inputs)
+    # TODO improve
+    vae = VAE1(batch_size=batch_size, n_epoch=n_epoch,
+               n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
+    vae.vae.fit(x=inputs, epochs=n_epoch, batch_size=batch_size)
+
+
+def run_vamb_ptorch(batch_size, logfile, outdir, rpkm, tnf):
+    nsamples = rpkm.shape[1]
+    vae = vamb.encode.VAE(nsamples, nhiddens=None, nlatent=32,
+                          alpha=None, beta=200, dropout=None, cuda=False)
+    print(vae)
+    dataloader, mask = vamb.encode.make_dataloader(rpkm, tnf, batch_size,
+                                                   destroy=True, cuda=False)
+    vamb.vambtools.write_npz(os.path.join(outdir, 'mask.npz'), mask)
+    n_discarded = len(mask) - mask.sum()
+    print('', file=logfile)
+    modelpath = os.path.join(outdir, 'model.pt')
+    vae.trainmodel(dataloader, nepochs=500, lrate=1e-3, batchsteps=[25, 75, 150, 300],
+                   logfile=logfile, modelfile=modelpath)
+    print('', file=logfile)
+    latent = vae.encode(dataloader)
+    vamb.vambtools.write_npz(os.path.join(outdir, 'latent.npz'), latent)
+    del vae  # Needed to free "latent" array's memory references?
+    return mask, latent
 
 
 if __name__ == "__main__":
