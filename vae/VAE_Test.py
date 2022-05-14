@@ -14,7 +14,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from keras.datasets import mnist
 from keras.layers import Input, Dense, Lambda
-from keras.losses import binary_crossentropy
+from keras.losses import mse, binary_crossentropy
 from keras.models import Model
 from keras import backend as K
 
@@ -162,9 +162,16 @@ def run_vae_tnf_bam():
     # of the Numpy arrays
     zscore(tnf, axis=0, inplace=True)
     #dataset = Dataset.from_tensor_slices((tnf, rpkm))
+    inputs = []
+    for idx, x in enumerate(tnf):
+        tmp = np.append(rpkm[idx], x)
+        inputs.append(tmp)
+    inputs = np.array(inputs)
+    """
     concat = []
     for i in range(tnf.shape[0]):
         concat.append(np.append(tnf[i], rpkm[i][0]))
+    """
     # depthstensor = torch.from_numpy(rpkm)
     # tnftensor = _torch.from_numpy(tnf)
 
@@ -174,11 +181,11 @@ def run_vae_tnf_bam():
 
 
     # network parameters
-    batch_size, n_epoch = 19499, 100 #Change batch back
-    n_hidden, z_dim = 64, 2
-    print(tnf.shape[1:])
+    batch_size, n_epoch = 37, 100 #Change batch back
+    n_hidden, z_dim = 256, 2
     # encoder
-    x = Input(shape=(tnf.shape[1:]))
+    #print(tnf.shape)
+    x = Input(shape=(inputs.shape[1:]))
     x_encoded = Dense(n_hidden, activation='relu')(x)
     x_encoded = Dense(n_hidden // 2, activation='relu')(x_encoded)
 
@@ -190,20 +197,21 @@ def run_vae_tnf_bam():
         mu, log_var = args
         eps = K.random_normal(shape=(batch_size, z_dim), mean=0., stddev=1.0)
         return mu + K.exp(log_var) * eps
-    print(z_dim)
+    print((z_dim,))
     z = Lambda(sampling, output_shape=(z_dim,))([mu, log_var])
+    print(z.shape)
 
     # decoder
     z_decoder1 = Dense(n_hidden // 2, activation='relu')
     z_decoder2 = Dense(n_hidden, activation='relu')
-    y_decoder = Dense(tnf.shape[1], activation='sigmoid')
+    y_decoder = Dense(inputs.shape[1], activation='sigmoid')
 
     z_decoded = z_decoder1(z)
     z_decoded = z_decoder2(z_decoded)
     y = y_decoder(z_decoded)
 
     # loss
-    reconstruction_loss = binary_crossentropy(x, y) * tnf.shape[1]
+    reconstruction_loss = mse(x, y) #* tnf.shape[1]
     kl_loss = 0.5 * K.sum(K.square(mu) + K.exp(log_var) - log_var - 1, axis=-1)
     vae_loss = reconstruction_loss + kl_loss
 
@@ -214,10 +222,10 @@ def run_vae_tnf_bam():
     vae.summary()
 
     # train
-    vae.fit(tnf,
+    vae.fit(inputs,
             shuffle=True,
             epochs=n_epoch,
-            batch_size=batch_size)
+            batch_size=batch_size, verbose=1)
 
 
 if __name__ == "__main__":
