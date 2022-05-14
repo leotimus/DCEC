@@ -151,13 +151,14 @@ def run_vae_tnf_bam():
         tnf = tnf[mask].astype(np.float32, copy=False)
 
     # If multiple samples, normalize to sum to 1, else zscore normalize
+    """
     if rpkm.shape[1] > 1:
         rpkm /= depthssum.reshape((-1, 1))
     else:
         zscore(rpkm, axis=0, inplace=True)
 
     zscore(tnf, axis=0, inplace=True)
-
+    """
     # TODO improve
     inputs = []
     for idx, x in enumerate(tnf):

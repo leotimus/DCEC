@@ -39,9 +39,13 @@ class VAE1(object):
     def create_encoder(self, input_shape) -> (Input, Model, Dense, Dense):
         inputs = Input(shape=input_shape, name='encoder_input')
         x = Dense(self.n_hidden, activation='relu')(inputs)
+        x = tf.keras.layers.BatchNormalization()(x)
         z_mean = Dense(self.n_hidden / 2, name='z_mean')(x)
+        z_mean = tf.keras.layers.BatchNormalization()(z_mean)
         z_log_var = Dense(self.n_hidden / 2, name='z_log_var')(x)
+        z_log_var = tf.keras.layers.BatchNormalization()(z_log_var)
         z = Lambda(self.sampling, output_shape=(self.n_hidden / 2,), name='z')([z_mean, z_log_var])
+        z =tf.keras.layers.BatchNormalization()(z)
         encoder = Model(inputs, [z_mean, z_log_var, z], name='encoder')
         if self.print_model:
             encoder.summary()
@@ -59,8 +63,8 @@ class VAE1(object):
     def decoder_model(self, input_shape):
         latent_inputs = Input(shape=(int(self.n_hidden / 2),), name='z_sampling')
         x = Dense(self.n_hidden, activation='relu')(latent_inputs)
+        x = tf.keras.layers.BatchNormalization()(x)
         outputs = Dense(input_shape[0], activation='sigmoid')(x)
-
         # instantiate decoder model
         decoder = Model(latent_inputs, outputs, name='decoder')
         if self.print_model:
