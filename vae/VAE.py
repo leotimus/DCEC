@@ -1,13 +1,13 @@
 import tensorflow as tf
-from tensorflow.python.keras.layers import Input, Dense, Lambda
-from tensorflow.python.keras.losses import binary_crossentropy, mse
-from tensorflow.python.keras.models import Model
-from tensorflow.python.keras import backend as K
+from tensorflow.keras.layers import Input, Dense, Lambda
+from tensorflow.keras.losses import binary_crossentropy, mse
+from tensorflow.keras.models import Model
+from tensorflow.keras import backend as K
 
 
 class VAE1(object):
 
-    def __init__(self, batch_size=100, n_epoch=100, n_hidden=256, input_shape=None,
+    def __init__(self, batch_size=100, n_epoch=100, n_hidden=64, input_shape=(104,),
                  print_model=True, save_dir='results/'):
         super(VAE1, self).__init__()
         self.batch_size = batch_size
@@ -45,7 +45,7 @@ class VAE1(object):
         z_log_var = Dense(self.n_hidden / 2, name='z_log_var')(x)
         z_log_var = tf.keras.layers.BatchNormalization()(z_log_var)
         z = Lambda(self.sampling, output_shape=(self.n_hidden / 2,), name='z')([z_mean, z_log_var])
-        z =tf.keras.layers.BatchNormalization()(z)
+        z = tf.keras.layers.BatchNormalization()(z)
         encoder = Model(inputs, [z_mean, z_log_var, z], name='encoder')
         if self.print_model:
             encoder.summary()

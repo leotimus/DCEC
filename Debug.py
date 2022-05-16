@@ -4,7 +4,7 @@ from vamb.__main__ import calc_tnf, calc_rpkm
 
 import reader.SequenceReader as sr
 from DCEC import DCEC
-from datasets import load_fasta, get_sequence_samples
+from datasets import load_fasta, get_sequence_samples, load_tnf_rpkm
 import tensorflow as tf
 from writer.BinWriter import writeBins, mapBinAndContigNames
 
@@ -16,16 +16,16 @@ def print_gpu_info():
 
 
 def write_bin_samples():
-    x = get_sequence_samples()
+    x, y = load_tnf_rpkm()
     dcec = DCEC(filters=[32, 64, 128, 10], n_clusters=60, contig_len=20000)
-    dcec.model.load_weights("results/debug1/dcec_model_final.h5")
-    clusters = dcec.predict(x, batch_size=256)
+    dcec.model.load_weights("results/vae/dcec_model_final.h5")
+    clusters = dcec.predict(x)
 
     fasta = "/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta"
     # fastaDict = sr.readContigs(fasta, numberOfSamples=10000, onlySequence=False)
     fastaDict = sr.readContigs(fasta, onlySequence=False)
     binsDict = mapBinAndContigNames(fastaDict, clusters)
-    writeBins("results/debug1/bins", bins=binsDict, fastadict=fastaDict)
+    writeBins("results/vae/bins", bins=binsDict, fastadict=fastaDict)
     print(f'predict size: ', len(clusters))
 
 
@@ -44,6 +44,18 @@ def training_full_20k():
     with tf.device('/cpu:0'):
         dcec.fit(x, y=y, tol=0.001, maxiter=200, update_interval=5, save_dir='results/debug2', batch_size=256)
 
+def training_full_20k_vae():
+    x, y = load_tnf_rpkm()
+    dcec = DCEC(filters=[32, 64, 128, 10], n_clusters=60, contig_len=20000)
+    # begin clustering.
+    optimizer = 'adam'
+    dcec.compile(loss=['kld', 'mse'], loss_weights=[0.1, 1], optimizer=optimizer)
+    # Step 1: pretrain if necessary
+    dcec.init_vae()
+    # Step 2: train with cpu
+    with tf.device('/cpu:0'):
+        dcec.fit(x, y=y, tol=0.001, maxiter=200, update_interval=5, save_dir='results/vae', batch_size=256)
+
 
 def test_tnf_abd(logfile):
     tnfs, contignames, contiglengths = calc_tnf(outdir='results/vectors',
@@ -57,7 +69,6 @@ def test_tnf_abd(logfile):
 
 
 if __name__ == "__main__":
-    a = (1, 2)
-    print(a[0])
+    write_bin_samples()
     # with open('results/vectors.log', 'w') as logfile:
     #     test_tnf_abd(logfile)

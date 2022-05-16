@@ -24,10 +24,10 @@ def run_vae_mnist():
     input_shape = (original_dim,)
     save_dir = 'results/vae-mnist'
     batch_size, n_epoch = 100, 100
-    n_hidden, z_dim = 256, 2
-    vae = VAE1(batch_size=batch_size, n_epoch=n_epoch, n_hidden=n_hidden, z_dim=z_dim, input_shape=input_shape)
+    n_hidden, z_dim = 64, 2
+    vae = VAE1(batch_size=batch_size, n_epoch=n_epoch, n_hidden=n_hidden, input_shape=input_shape)
 
-    vae.vae.fit(x_train, epochs=n_epoch, batch_size=batch_size, validation_data=(x_test, None))
+    vae.vae.fit(x_train, epochs=100, batch_size=batch_size, validation_data=(x_test, None))
     vae.vae.save_weights(f'vae_mlp_mnist_latent_dim_{z_dim}.h5')
 
     # vae.vae.load_weights(f'{save_dir}/vae.h5')
@@ -168,7 +168,8 @@ def run_vae_tnf_bam():
     # TODO improve
     vae = VAE1(batch_size=batch_size, n_epoch=n_epoch,
                n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
-    vae.vae.fit(x=inputs, epochs=n_epoch, batch_size=batch_size)
+    vae.vae.fit(x=inputs, epochs=100, batch_size=batch_size)
+    vae.vae.save('results/vae/vae-full.h5')
 
 
 def run_vamb_ptorch(batch_size, logfile, outdir, rpkm, tnf):
@@ -193,4 +194,4 @@ def run_vamb_ptorch(batch_size, logfile, outdir, rpkm, tnf):
 
 if __name__ == "__main__":
     run_vae_tnf_bam()
-    # run_vae_mnist()
+    #run_vae_mnist()

@@ -4,6 +4,11 @@ import tensorflow
 
 import reader.SequenceReader as sr
 import matplotlib.pyplot as plt
+import os
+from pathlib import Path
+
+from vamb.__main__ import calc_tnf, calc_rpkm
+from vamb.vambtools import numpy_inplace_maskarray, write_npz
 
 
 def load_mnist():
@@ -64,6 +69,76 @@ def load_fasta(n_samples=None, contig_len=1000):
     return x, None
 
 
+def load_tnf_rpkm():
+    save_dir, outdir = 'vae/results/vae', 'vae/results/vae'
+    batch_size, n_epoch = 100, 500
+    n_hidden = 64
+    destroy = False
+
+    Path(save_dir).mkdir(parents=True, exist_ok=True)
+    bams_path = ['/share_data/cami_low/bams/RL_S001.bam']
+    fasta_path = '/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta'
+    tnf_path = f'{save_dir}/tnf.npz'
+    names_path = f'{save_dir}/names.npz'
+    lengths_path = f'{save_dir}/lengths.npz'
+    rpkm_path = f'{save_dir}/rpkm.npz'
+    with open(f'{save_dir}/vectors.log', 'w') as logfile:
+        tnf, contignames, contiglengths = calc_tnf(outdir=save_dir,
+                                                   fastapath=None,
+                                                   tnfpath=tnf_path,
+                                                   namespath=names_path,
+                                                   lengthspath=lengths_path,
+                                                   mincontiglength=100,
+                                                   logfile=logfile)
+        if not Path(names_path).exists():
+            write_npz(os.path.join(save_dir, 'names.npz'), contignames)
+        rpkm = calc_rpkm(outdir=save_dir,
+                         bampaths=None,
+                         rpkmpath=rpkm_path,
+                         jgipath=None, mincontiglength=100, refhash=None, ncontigs=len(tnf), minalignscore=None,
+                         minid=None,
+                         subprocesses=min(os.cpu_count(), 8), logfile=logfile)
+
+    # return run_vamb_ptorch(batch_size, logfile, outdir, rpkm, tnf)
+
+    mask = tnf.sum(axis=1) != 0
+
+    # If multiple samples, also include nonzero depth as requirement for accept
+    # of sequences
+    if rpkm.shape[1] > 1:
+        depthssum = rpkm.sum(axis=1)
+        mask &= depthssum != 0
+        depthssum = depthssum[mask]
+
+    if mask.sum() < batch_size:
+        raise ValueError('Fewer sequences left after filtering than the batch size.')
+
+    if destroy:
+        rpkm = numpy_inplace_maskarray(rpkm, mask)
+        tnf = numpy_inplace_maskarray(tnf, mask)
+    else:
+        # The astype operation does not copy due to "copy=False", but the masking
+        # operation does.
+        rpkm = rpkm[mask].astype(np.float32, copy=False)
+        tnf = tnf[mask].astype(np.float32, copy=False)
+
+    # If multiple samples, normalize to sum to 1, else zscore normalize
+    """
+    if rpkm.shape[1] > 1:
+        rpkm /= depthssum.reshape((-1, 1))
+    else:
+        zscore(rpkm, axis=0, inplace=True)
+
+    zscore(tnf, axis=0, inplace=True)
+    """
+    # TODO improve
+    inputs = []
+    for idx, x in enumerate(tnf):
+        tmp = np.append(rpkm[idx], x)
+        inputs.append(tmp)
+    inputs = np.array(inputs)
+    return inputs, None
+
 def get_sequence_samples(n_samples=None):
     fastaFile = "/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta"
     contigs = sr.readContigs(fastaFile, numberOfSamples=n_samples)
@@ -112,11 +187,11 @@ def decode(n, contig_len=20000):
   return to_categorical(myMapCharsToInteger(decoded), num_classes=5)
   """
   decoded = bytes(n).decode()
-  most_common_nucleotide = max(set(decoded), key=decoded.count)
-  decoded = [most_common_nucleotide if x == 'N' else x for x in decoded]
-  encodings = tensorflow.keras.utils.to_categorical(myMapCharsToInteger(decoded), num_classes=4)
-  encodings = setSequenceLength(encodings, contig_len)
-  return encodings
+  #most_common_nucleotide = max(set(decoded), key=decoded.count)
+  #decoded = [most_common_nucleotide if x == 'N' else x for x in decoded]
+  #encodings = tensorflow.keras.utils.to_categorical(myMapCharsToInteger(decoded), num_classes=4)
+  #encodings = setSequenceLength(encodings, contig_len)
+  return decoded
 
  
 def strLengths(n):
