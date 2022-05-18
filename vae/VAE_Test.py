@@ -169,6 +169,8 @@ def run_vae_tnf_bam():
     vae = VAE1(batch_size=batch_size, n_epoch=n_epoch,
                n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
     vae.vae.fit(x=inputs, epochs=n_epoch, batch_size=batch_size)
+    vae_predict = vae.vae.predict(x=inputs, batch_size=batch_size)
+    vae_predict.shape()
 
 
 def run_vamb_ptorch(batch_size, logfile, outdir, rpkm, tnf):
@@ -191,6 +193,19 @@ def run_vamb_ptorch(batch_size, logfile, outdir, rpkm, tnf):
     return mask, latent
 
 
+def run_deep_clustering():
+    save_dir, outdir = 'results/vae', 'results/vae'
+    batch_size, n_epoch = 100, 500
+    n_hidden = 64
+    destroy = False
+    vae = VAE1(batch_size=batch_size, n_epoch=n_epoch,
+               n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
+    optimizer = 'adam'
+    vae.deep_model.compile(loss=['kld', 'mse'], loss_weights=[0.1, 1], optimizer=optimizer)
+    vae.deep_model.summary()
+
+
 if __name__ == "__main__":
-    run_vae_tnf_bam()
+    # run_vae_tnf_bam()
+    run_deep_clustering()
     # run_vae_mnist()

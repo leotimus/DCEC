@@ -4,6 +4,8 @@ from tensorflow.python.keras.losses import binary_crossentropy, mse
 from tensorflow.python.keras.models import Model
 from tensorflow.python.keras import backend as K
 
+from DCEC import ClusteringLayer
+
 
 class VAE1(object):
 
@@ -35,6 +37,9 @@ class VAE1(object):
         vae_loss = K.mean(reconstruction_loss + kl_loss)
         self.vae.add_loss(vae_loss)
         self.vae.compile(optimizer='adam')
+
+        self.clustering_layer = ClusteringLayer(60, name='clustering')(self.n_hidden)
+        self.deep_model = Model(inputs=inputs, outputs=[self.clustering_layer, outputs], name='deep_clustering')
 
     def create_encoder(self, input_shape) -> (Input, Model, Dense, Dense):
         inputs = Input(shape=input_shape, name='encoder_input')
