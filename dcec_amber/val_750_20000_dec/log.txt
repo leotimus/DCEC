@@ -1,0 +1,15 @@
+2022-05-18 11:04:55,738 INFO Found @Version:0.9.0
+2022-05-18 11:04:55,739 INFO Found @Version:0.9.1
+2022-05-18 11:04:55,739 INFO Found @SampleID:gsa
+2022-05-18 11:04:55,740 INFO Found @SampleID:gsa
+2022-05-18 11:04:55,759 INFO Loading gsa
+2022-05-18 11:04:55,795 INFO Loading gsa
+2022-05-18 11:04:55,827 INFO Loading Gold standard
+2022-05-18 11:04:55,836 INFO Loading DCEC
+2022-05-18 11:04:55,844 INFO Creating output directories
+2022-05-18 11:04:55,854 INFO Evaluating Gold standard (sample gsa, genome binning)
+2022-05-18 11:04:55,935 INFO Evaluating DCEC (sample gsa, genome binning)
+2022-05-18 11:04:56,046 INFO Saving computed metrics
+2022-05-18 11:04:56,090 INFO Creating genome binning plots
+2022-05-18 11:05:01,333 INFO Creating HTML page
+2022-05-18 11:05:02,212 INFO AMBER finished successfully. All results have been saved to /mnt/c/Python/Source/DCEC/dcec_amber/val_750_20000_dec

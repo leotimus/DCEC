@@ -11,7 +11,7 @@ conda activate tools
 
 
 /share_data/amber/src/utils/convert_fasta_bins_to_biobox_format.py  /home/jpolas20/Source/DCEC_project/DCEC/results/debug1/bins/*.fna -o /home/jpolas20/Source/DCEC_project/DCEC/dcec_amber/dcec-bins.tsv
-
+.\convert_fasta_bins_to_biobox_format.py C:\Python\Source\DCEC\results\debug2\bins\*.fna python.exe .\convert_fasta_bins_to_biobox_format.py C:\Python\Source\DCEC\results\debug2\bins\*.fn
 
 3. execute amber
 amber.py -g /share_data/cami_low/gsa_mapping_with_length.binning  /home/jpolas20/Source/DCEC_project/DCEC/dcec_amber/dcec-bins.tsv -l DCEC -o /home/jpolas20/Source/DCEC_project/DCEC/dcec_amber/validation1

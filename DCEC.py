@@ -112,18 +112,22 @@ class DCEC(object):
         return K.sum(K.binary_crossentropy(y_true, y_pred), axis=-1)
 
     def custom_loss(self, y_true, y_pred):
-    
-        class_loss = self.nll_loss(tf.nn.log_softmax(y_true, axis=-1), tf.math.argmax(y_pred, axis=-1))
+        y_true = tf.nn.log_softmax(y_true, axis=1)
+        y_pred = tf.reduce_max(y_pred, keepdims=True)
+        #y_pred = tf.math.argmax(y_pred, axis=0)
+        #y_pred = tf.cast(y_true, tf.float32)
+        #y_true = tf.cast(y_true, tf.float32)
+        #class_loss = (tf.cast(tf.nn.log_softmax(y_true, axis=-1), tf.float32)) - (tf.cast(tf.math.argmax(y_pred), tf.float32))
         #class_loss = self.nll_loss(tf.nn.log_softmax(a),  np.argmax(b))
         #class_loss = self.nll_loss(log_softmax(a), np.argmax(b))
 
-        return class_loss
+        return self.nll_loss(y_true, y_pred)
     
     
-    def pretrain(self, x, batch_size=256, epochs=15, optimizer='adam', save_dir='results/temp'):
+    def pretrain(self, x, batch_size=256, epochs=10, optimizer='adam', save_dir='results/temp'):
         print('...Pretraining...')
         cosine_loss = tf.keras.losses.CosineSimilarity()
-        self.cae.compile(optimizer=optimizer, loss=tf.keras.losses.CosineSimilarity(), run_eagerly=True)
+        self.cae.compile(optimizer=optimizer, loss=tf.keras.losses.CosineSimilarity())
         print(self.cae.loss)
         from keras.callbacks import CSVLogger
         csv_logger = CSVLogger(args.save_dir + '/pretrain_log.csv')
@@ -198,10 +202,11 @@ class DCEC(object):
         logfile = open(save_dir + '/dcec_log.csv', 'w')
         logwriter = csv.DictWriter(logfile, fieldnames=['iter', 'acc', 'nmi', 'ari', 'L', 'Lc', 'Lr'])
         logwriter.writeheader()
-
+        logfile.close()
+        logdelta = open(save_dir + '/delta_and_losses.txt', 'w')
         # save_interval = x.shape[0] / batch_size * 5
         # save_interval = len(self.y_pred) / batch_size * 5
-        save_interval = 20
+        save_interval = 1
         print(f'Save interval: {save_interval}, Update interval: {update_interval}.')
 
         loss = [0, 0, 0]
@@ -248,7 +253,10 @@ class DCEC(object):
                     ari = np.round(metrics.ari(y, self.y_pred), 5)
                     loss = np.round(loss, 5)
                     logdict = dict(iter=ite, acc=acc, nmi=nmi, ari=ari, L=loss[0], Lc=loss[1], Lr=loss[2])
+                    logfile = open(save_dir + '/dcec_log.csv', 'a')
+                    logwriter = csv.DictWriter(logfile, fieldnames=['iter', 'acc', 'nmi', 'ari', 'L', 'Lc', 'Lr'])
                     logwriter.writerow(logdict)
+                    logfile.close()
                     print('Iter', ite, ': Acc', acc, ', nmi', nmi, ', ari', ari, '; loss=', loss)
 
                 # check stop criterion
@@ -256,6 +264,7 @@ class DCEC(object):
                 print(delta_label)
                 y_pred_last = np.copy(self.y_pred)
                 if ite > 0 and delta_label < tol:
+                    logdelta.write('Delta_Label:' + str(ite) + " " + str(delta_label) + '\n')
                     print('delta_label ', delta_label, '< tol ', tol)
                     print('Reached tolerance threshold. Stopping training.')
                     logfile.close()
@@ -287,6 +296,7 @@ class DCEC(object):
             # save intermediate model
             if ite != 0 and ite % save_interval == 0:
                 # save DCEC model checkpoints
+                logdelta.write('observed losses: ' + str(loss) + '\n')
                 file = save_dir + '/dcec_model_' + str(ite) + '.h5'
                 print(f'saving model to: {file} of iteration={ite}')
                 self.model.save_weights(file)
@@ -302,7 +312,7 @@ class DCEC(object):
         t2 = time()
         print('Clustering time:', t2 - t1)
         print('Total time:     ', t2 - t0)
-
+        logdelta.close()
     def init_cae(self, batch_size, cae_weights, save_dir, x):
         t0 = time()
         if not self.pretrained and cae_weights is None:
@@ -322,23 +332,40 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='train')
     parser.add_argument('dataset', default='mnist', choices=['mnist', 'usps', 'mnist-test', 'fasta'])
-    parser.add_argument('--n_clusters', default=53, type=int)
+    parser.add_argument('--n_clusters', default=60, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
-    parser.add_argument('--maxiter', default=2e4, type=int)
+    parser.add_argument('--maxiter', default=20000, type=int)
     parser.add_argument('--gamma', default=0.1, type=float,
                         help='coefficient of clustering loss')
-    parser.add_argument('--update_interval', default=20, type=int)
-    parser.add_argument('--tol', default=0.001, type=float)
+    parser.add_argument('--update_interval', default=1, type=int)
+    parser.add_argument('--tol', default=0.01, type=float)
     parser.add_argument('--cae_weights', default=None, help='This argument must be given')
     parser.add_argument('--save_dir', default='results/temp')
-    parser.add_argument('--contig_len', default=10000, type=int)
+    parser.add_argument('--contig_len', default=20000, type=int)
     parser.add_argument('--n_samples', default=None, type=int)
     args = parser.parse_args()
     print(args)
 
     import os
 
-    
+    def nll_loss(self, y_true, y_pred):
+        """ Negative log likelihood. """
+
+        # keras.losses.binary_crossentropy give the mean
+        # over the last axis. we require the sum
+        return K.sum(K.binary_crossentropy(y_true, y_pred), axis=-1)
+
+    def custom_loss(self, y_true, y_pred):
+        y_true = tf.nn.log_softmax(y_true, axis=1)
+        y_pred = tf.reduce_max(y_pred, keepdims=True)
+        #y_pred = tf.math.argmax(y_pred, axis=0)
+        #y_pred = tf.cast(y_true, tf.float32)
+        #y_true = tf.cast(y_true, tf.float32)
+        #class_loss = (tf.cast(tf.nn.log_softmax(y_true, axis=-1), tf.float32)) - (tf.cast(tf.math.argmax(y_pred), tf.float32))
+        #class_loss = self.nll_loss(tf.nn.log_softmax(a),  np.argmax(b))
+        #class_loss = self.nll_loss(log_softmax(a), np.argmax(b))
+
+        return self.nll_loss(y_true, y_pred)
 
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
