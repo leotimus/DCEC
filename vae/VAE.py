@@ -1,11 +1,7 @@
-import tensorflow as tf
-from tensorflow.python.keras.layers import Input, Dense, Lambda
-from tensorflow.python.keras.losses import binary_crossentropy, mse
-from tensorflow.python.keras.models import Model
-from tensorflow.python.keras import backend as K
-
-from DCEC import ClusteringLayer
-
+from keras import Model, backend as K, Input
+from keras.layers import Dense, Lambda
+from keras.losses import mse
+from tensorflow import keras
 
 class VAE1(object):
 
@@ -18,16 +14,17 @@ class VAE1(object):
         self.print_model = print_model
         self.save_dir = save_dir
 
-        inputs, self.encoder, z_mean, z_log_var = self.create_encoder(input_shape)
+        self.encoder_input, self.encoder, z_mean, z_log_var = self.create_encoder(input_shape)
         self.decoder = self.decoder_model(input_shape)
-        outputs = self.decoder(self.encoder(inputs)[2])
+        self.outputs = self.decoder(self.encoder(self.encoder_input)[2])
 
-        self.vae = Model(inputs, outputs, name='vae')
+        self.vae = Model(self.encoder_input, self.outputs, name='vae')
         if self.print_model:
             self.vae.summary()
+            keras.utils.plot_model(self.vae, to_file=f'{self.save_dir}/vae.png', show_shapes=True)
 
         original_dim = input_shape[0]
-        reconstruction_loss = mse(inputs, outputs)
+        reconstruction_loss = mse(self.encoder_input, self.outputs)
         # reconstruction_loss = binary_crossentropy(inputs, outputs)
         # reconstruction_loss = binary_crossentropy(inputs, outputs)
         reconstruction_loss *= original_dim
@@ -38,23 +35,27 @@ class VAE1(object):
         self.vae.add_loss(vae_loss)
         self.vae.compile(optimizer='adam')
 
-        self.clustering_layer = ClusteringLayer(60, name='clustering')(self.n_hidden)
-        self.deep_model = Model(inputs=inputs, outputs=[self.clustering_layer, outputs], name='deep_clustering')
+        # self.clustering_layer = ClusteringLayer(60, name='clustering')(self.encoder(self.encoder_input)[2])
+        # self.deep_model: Model = Model(inputs=self.encoder_input, outputs=[self.clustering_layer, self.outputs], name='deep_clustering')
+        # if self.print_model:
+        #     self.deep_model.summary()
+        #     keras.utils.plot_model(self.deep_model, to_file=f'{self.save_dir}/vae_deep.png', show_shapes=True)
+        # self.deep_model.compile(optimizer='adam', loss='mse')
 
     def create_encoder(self, input_shape) -> (Input, Model, Dense, Dense):
         inputs = Input(shape=input_shape, name='encoder_input')
         x = Dense(self.n_hidden, activation='relu')(inputs)
-        x = tf.keras.layers.BatchNormalization()(x)
+        x = keras.layers.BatchNormalization()(x)
         z_mean = Dense(self.n_hidden / 2, name='z_mean')(x)
-        z_mean = tf.keras.layers.BatchNormalization()(z_mean)
+        z_mean = keras.layers.BatchNormalization()(z_mean)
         z_log_var = Dense(self.n_hidden / 2, name='z_log_var')(x)
-        z_log_var = tf.keras.layers.BatchNormalization()(z_log_var)
-        z = Lambda(self.sampling, output_shape=(self.n_hidden / 2,), name='z')([z_mean, z_log_var])
-        z =tf.keras.layers.BatchNormalization()(z)
+        z_log_var = keras.layers.BatchNormalization()(z_log_var)
+        z = Lambda(self.sampling, output_shape=(self.n_hidden / 2,), name='z_sampling')([z_mean, z_log_var])
+        z = keras.layers.BatchNormalization()(z)
         encoder = Model(inputs, [z_mean, z_log_var, z], name='encoder')
         if self.print_model:
             encoder.summary()
-        tf.keras.utils.plot_model(encoder, to_file=f'{self.save_dir}/vae_encoder.png', show_shapes=True)
+            keras.utils.plot_model(encoder, to_file=f'{self.save_dir}/vae_encoder.png', show_shapes=True)
         return inputs, encoder, z_mean, z_log_var
 
     def sampling(self, args):
@@ -68,11 +69,11 @@ class VAE1(object):
     def decoder_model(self, input_shape):
         latent_inputs = Input(shape=(int(self.n_hidden / 2),), name='z_sampling')
         x = Dense(self.n_hidden, activation='relu')(latent_inputs)
-        x = tf.keras.layers.BatchNormalization()(x)
+        x = keras.layers.BatchNormalization()(x)
         outputs = Dense(input_shape[0], activation='sigmoid')(x)
         # instantiate decoder model
         decoder = Model(latent_inputs, outputs, name='decoder')
         if self.print_model:
             decoder.summary()
-        tf.keras.utils.plot_model(decoder, to_file=f'{self.save_dir}/vae_decoder.png', show_shapes=True)
+            keras.utils.plot_model(decoder, to_file=f'{self.save_dir}/vae_decoder.png', show_shapes=True)
         return decoder

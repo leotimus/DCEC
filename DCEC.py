@@ -9,6 +9,7 @@ from ConvAE2 import CAE2
 from reader.DCECDataGenerator import DCECDataGenerator
 from reader.DataGenerator import DataGenerator
 from datasets import get_sequence_samples, decode
+from vae.VAE import VAE1
 
 
 class ClusteringLayer(keras.layers.Layer):
@@ -84,36 +85,48 @@ class DCEC(object):
         self.pretrained = False
         self.y_pred = []
 
-        self.cae = CAE2(filters=filters, contig_len=contig_len)
-        hidden = self.cae.get_layer(name='embedding').output
-        self.encoder = keras.models.Model(inputs=self.cae.input, outputs=hidden)
+        # self.cae = CAE2(filters=filters, contig_len=contig_len)
+        # hidden = self.cae.get_layer(name='embedding').output
+        # self.encoder = keras.models.Model(inputs=self.cae.input, outputs=hidden)
+
+        save_dir, outdir = 'results/vae2', 'results/vae2'
+        batch_size, n_epoch = 100, 500
+        n_hidden = 64
+        destroy = False
+        cae = VAE1(batch_size=batch_size, n_epoch=n_epoch,
+                   n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
+        cae.vae.compile(optimizer='adam')
+
+        self.clustering_layer = ClusteringLayer(60, name='clustering')(cae.encoder(cae.encoder_input)[2])
 
         # Define DCEC model
-        self.clustering_layer = ClusteringLayer(self.n_clusters, name='clustering')(hidden)
-        self.model = keras.models.Model(inputs=self.cae.input,
-                                        outputs=[self.clustering_layer, self.cae.output])
+        # self.clustering_layer = ClusteringLayer(self.n_clusters, name='clustering')(hidden)
+        self.model = keras.models.Model(inputs=cae.encoder_input,
+                                        outputs=[self.clustering_layer, cae.outputs])
+        keras.utils.plot_model(self.model, to_file=f'{save_dir}/vae_encoder.png', show_shapes=True)
+        self.cae = cae
 
     def pretrain(self, x, batch_size=256, epochs=200, optimizer='adam', save_dir='results/temp'):
         print('...Pretraining...')
-        self.cae.compile(optimizer=optimizer, loss='mse')
+        self.cae.vae.compile(optimizer=optimizer, loss='mse')
         from keras.callbacks import CSVLogger
-        csv_logger = CSVLogger(args.save_dir + '/pretrain_log.csv')
+        csv_logger = CSVLogger(save_dir + '/pretrain_log.csv')
 
         # begin training
         t0 = time()
-        cae_generator = DataGenerator(x, batch_size=batch_size, contig_len=self.contig_len)
-        self.cae.fit(x=cae_generator, batch_size=batch_size, epochs=epochs, callbacks=[csv_logger])
+        # cae_generator = DataGenerator(x, batch_size=batch_size, contig_len=self.contig_len)
+        self.cae.vae.fit(x=x, y=x, batch_size=batch_size, epochs=epochs, callbacks=[csv_logger])
         print('Pretraining time: ', time() - t0)
-        self.cae.save(save_dir + '/pretrain_cae_model.h5')
+        self.cae.vae.save(save_dir + '/pretrain_cae_model.h5')
         print(f'Pretrained weights are saved to {save_dir}/pretrain_cae_model.h5, reload weights')
-        self.cae.load_weights(save_dir + '/pretrain_cae_model.h5')
+        self.cae.vae.load_weights(save_dir + '/pretrain_cae_model.h5')
         self.pretrained = True
 
     def load_weights(self, weights_path):
         self.model.load_weights(weights_path)
 
     def extract_feature(self, x):  # extract features from before clustering layer
-        return self.encoder.predict(x)
+        return self.cae.encoder.predict(x)
 
     def predict(self, x, batch_size):
         q = None
@@ -122,9 +135,9 @@ class DCEC(object):
         size = len(x)
         while not complete:
             x_ = x[p_index * batch_size:(p_index + 1) * batch_size]
-            x_ = [decode(i, self.contig_len) for i in x_]
-            x_ = np.array(x_)
-            x_ = x_.reshape(-1, self.contig_len, 4, 1).astype('float32')
+            # x_ = [decode(i, self.contig_len) for i in x_]
+            # x_ = np.array(x_)
+            # x_ = x_.reshape(-1, self.contig_len, 4, 1).astype('float32')
             q_, tmp = self.model.predict(x=x_, batch_size=None, verbose=0)
             del tmp
             if q is None:
@@ -152,10 +165,10 @@ class DCEC(object):
         t0 = time()
         # Step 2: initialize cluster centers using k-means
         t1 = time()
-        print('Initializing cluster centers with k-means.')
+        print(f'Initializing cluster centers with k-means {self.n_clusters}.')
         kmeans = KMeans(n_clusters=self.n_clusters, n_init=20)
-        predict_generator = DataGenerator(x, batch_size=batch_size, contig_len=self.contig_len)
-        self.y_pred = kmeans.fit_predict(self.encoder.predict(predict_generator))
+        # predict_generator = DataGenerator(x, batch_size=batch_size, contig_len=self.contig_len)
+        self.y_pred = kmeans.fit_predict(self.cae.encoder.predict(x=x)[2])
         y_pred_last = np.copy(self.y_pred)
         self.model.get_layer("clustering").set_weights([kmeans.cluster_centers_])
 
@@ -188,9 +201,9 @@ class DCEC(object):
                 p_index = 0
                 while not complete:
                     x_ = x[p_index * batch_size:(p_index + 1) * batch_size]
-                    x_ = [decode(i, self.contig_len) for i in x_]
-                    x_ = np.array(x_)
-                    x_ = x_.reshape(-1, self.contig_len, 4, 1).astype('float32')
+                    # x_ = [decode(i, self.contig_len) for i in x_]
+                    # x_ = np.array(x_)
+                    # x_ = x_.reshape(-1, self.contig_len, 4, 1).astype('float32')
                     q_, tmp = self.model.predict(x=x_, batch_size=None, verbose=0)
                     del tmp
                     if q is None:
@@ -229,17 +242,17 @@ class DCEC(object):
             # train on batch
             if (index + 1) * batch_size >= size:
                 x_ = x[index * batch_size::]
-                x_ = [decode(i, self.contig_len) for i in x_]
-                x_ = np.array(x_)
-                x_ = x_.reshape(-1, self.contig_len, 4, 1).astype('float32')
+                # x_ = [decode(i, self.contig_len) for i in x_]
+                # x_ = np.array(x_)
+                # x_ = x_.reshape(-1, self.contig_len, 4, 1).astype('float32')
                 y_ = p[index * batch_size::]
                 loss = self.model.train_on_batch(x=x_, y=[y_, x_])
                 index = 0
             else:
                 x_ = x[index * batch_size:(index + 1) * batch_size]
-                x_ = [decode(i, self.contig_len) for i in x_]
-                x_ = np.array(x_)
-                x_ = x_.reshape(-1, self.contig_len, 4, 1).astype('float32')
+                # x_ = [decode(i, self.contig_len) for i in x_]
+                # x_ = np.array(x_)
+                # x_ = x_.reshape(-1, self.contig_len, 4, 1).astype('float32')
                 y_ = p[index * batch_size:(index + 1) * batch_size]
                 loss = self.model.train_on_batch(x=x_, y=[y_, x_])
                 index += 1
@@ -274,58 +287,6 @@ class DCEC(object):
             self.pretrain(x, batch_size, save_dir=save_dir)
             self.pretrained = True
         elif cae_weights is not None:
-            self.cae.load_weights(cae_weights)
+            self.cae.vae.load_weights(cae_weights)
             print('cae_weights is loaded successfully.')
         print('Pretrain time:  ', time() - t0)
-
-
-if __name__ == "__main__":
-    # setting the hyper parameters
-    import argparse
-
-    parser = argparse.ArgumentParser(description='train')
-    parser.add_argument('dataset', default='mnist', choices=['mnist', 'usps', 'mnist-test', 'fasta'])
-    parser.add_argument('--n_clusters', default=10, type=int)
-    parser.add_argument('--batch_size', default=256, type=int)
-    parser.add_argument('--maxiter', default=2e4, type=int)
-    parser.add_argument('--gamma', default=0.1, type=float,
-                        help='coefficient of clustering loss')
-    parser.add_argument('--update_interval', default=140, type=int)
-    parser.add_argument('--tol', default=0.001, type=float)
-    parser.add_argument('--cae_weights', default=None, help='This argument must be given')
-    parser.add_argument('--save_dir', default='results/temp')
-    parser.add_argument('--contig_len', default=1000, type=int)
-    parser.add_argument('--n_samples', default=None, type=int)
-    args = parser.parse_args()
-    print(args)
-
-    import os
-
-    if not os.path.exists(args.save_dir):
-        os.makedirs(args.save_dir)
-
-    # x = get_sequence_samples(n_samples=1000)
-    x = get_sequence_samples()
-    y = None
-
-    # prepare the DCEC model
-    # shape_ = x.shape[1:]
-    # dcec = DCEC(input_shape=shape_, filters=[32, 64, 128, 10], n_clusters=args.n_clusters)
-    dcec = DCEC(filters=[32, 64, 128, 10], n_clusters=args.n_clusters, contig_len=args.contig_len)
-    keras.utils.plot_model(dcec.model, to_file=args.save_dir + '/dcec_model.png', show_shapes=True)
-    dcec.model.summary()
-
-    # begin clustering.
-    optimizer = 'adam'
-    dcec.compile(loss=['kld', 'mse'], loss_weights=[args.gamma, 1], optimizer=optimizer)
-    # Step 1: pretrain if necessary
-    dcec.init_cae(batch_size=args.batch_size, cae_weights=args.cae_weights, save_dir=args.save_dir, x=x)
-    # Step 2: train with cpu
-    with tf.device('/cpu:0'):
-        dcec.fit(x, y=y, tol=args.tol, maxiter=args.maxiter, update_interval=args.update_interval, save_dir=args.save_dir,
-                batch_size=args.batch_size)
-
-    if y is not None:
-        y_pred = dcec.y_pred
-        print('acc = %.4f, nmi = %.4f, ari = %.4f' % (
-        metrics.acc(y, y_pred), metrics.nmi(y, y_pred), metrics.ari(y, y_pred)))

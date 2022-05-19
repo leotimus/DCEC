@@ -9,7 +9,10 @@ from tensorflow.python.data import Dataset
 from vamb.__main__ import calc_tnf, calc_rpkm
 from vamb.vambtools import numpy_inplace_maskarray, zscore, write_npz
 
+from DCEC import DCEC
+from reader.SequenceReader import readContigs
 from vae.VAE import VAE1
+from writer.BinWriter import mapBinAndContigNames, writeBins
 
 
 def run_vae_mnist():
@@ -103,6 +106,15 @@ def run_vae_tnf_bam():
     n_hidden = 64
     destroy = False
 
+    inputs = get_input(batch_size, destroy, save_dir)
+    # TODO improve
+    vae = VAE1(batch_size=batch_size, n_epoch=n_epoch,
+               n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
+    vae.vae.fit(x=inputs, epochs=n_epoch, batch_size=batch_size)
+    vae_predict = vae.vae.predict(x=inputs, batch_size=batch_size)
+
+
+def get_input(batch_size, destroy, save_dir):
     Path(save_dir).mkdir(parents=True, exist_ok=True)
     bams_path = ['/share_data/cami_low/bams/RL_S001.bam']
     fasta_path = '/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta'
@@ -112,35 +124,30 @@ def run_vae_tnf_bam():
     rpkm_path = f'{save_dir}/rpkm.npz'
     with open(f'{save_dir}/vectors.log', 'w') as logfile:
         tnf, contignames, contiglengths = calc_tnf(outdir=save_dir,
-                                                    fastapath=None,
-                                                    tnfpath=tnf_path,
-                                                    namespath=names_path,
-                                                    lengthspath=lengths_path,
-                                                    mincontiglength=100,
-                                                    logfile=logfile)
+                                                   fastapath=None,
+                                                   tnfpath=tnf_path,
+                                                   namespath=names_path,
+                                                   lengthspath=lengths_path,
+                                                   mincontiglength=100,
+                                                   logfile=logfile)
         if not Path(names_path).exists():
             write_npz(os.path.join(save_dir, 'names.npz'), contignames)
         rpkm = calc_rpkm(outdir=save_dir,
-                            bampaths=None,
-                            rpkmpath=rpkm_path,
-                            jgipath=None, mincontiglength=100, refhash=None, ncontigs=len(tnf), minalignscore=None,
-                            minid=None,
-                            subprocesses=min(os.cpu_count(), 8), logfile=logfile)
-
+                         bampaths=None,
+                         rpkmpath=rpkm_path,
+                         jgipath=None, mincontiglength=100, refhash=None, ncontigs=len(tnf), minalignscore=None,
+                         minid=None,
+                         subprocesses=min(os.cpu_count(), 8), logfile=logfile)
     # return run_vamb_ptorch(batch_size, logfile, outdir, rpkm, tnf)
-
     mask = tnf.sum(axis=1) != 0
-
     # If multiple samples, also include nonzero depth as requirement for accept
     # of sequences
     if rpkm.shape[1] > 1:
         depthssum = rpkm.sum(axis=1)
         mask &= depthssum != 0
         depthssum = depthssum[mask]
-
     if mask.sum() < batch_size:
         raise ValueError('Fewer sequences left after filtering than the batch size.')
-
     if destroy:
         rpkm = numpy_inplace_maskarray(rpkm, mask)
         tnf = numpy_inplace_maskarray(tnf, mask)
@@ -149,28 +156,22 @@ def run_vae_tnf_bam():
         # operation does.
         rpkm = rpkm[mask].astype(np.float32, copy=False)
         tnf = tnf[mask].astype(np.float32, copy=False)
-
     # If multiple samples, normalize to sum to 1, else zscore normalize
     """
-    if rpkm.shape[1] > 1:
-        rpkm /= depthssum.reshape((-1, 1))
-    else:
-        zscore(rpkm, axis=0, inplace=True)
-
-    zscore(tnf, axis=0, inplace=True)
-    """
+        if rpkm.shape[1] > 1:
+            rpkm /= depthssum.reshape((-1, 1))
+        else:
+            zscore(rpkm, axis=0, inplace=True)
+    
+        zscore(tnf, axis=0, inplace=True)
+        """
     # TODO improve
     inputs = []
     for idx, x in enumerate(tnf):
         tmp = np.append(rpkm[idx], x)
         inputs.append(tmp)
     inputs = np.array(inputs)
-    # TODO improve
-    vae = VAE1(batch_size=batch_size, n_epoch=n_epoch,
-               n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
-    vae.vae.fit(x=inputs, epochs=n_epoch, batch_size=batch_size)
-    vae_predict = vae.vae.predict(x=inputs, batch_size=batch_size)
-    vae_predict.shape()
+    return inputs
 
 
 def run_vamb_ptorch(batch_size, logfile, outdir, rpkm, tnf):
@@ -194,15 +195,34 @@ def run_vamb_ptorch(batch_size, logfile, outdir, rpkm, tnf):
 
 
 def run_deep_clustering():
-    save_dir, outdir = 'results/vae', 'results/vae'
+    save_dir, outdir = 'results/vae2', 'results/vae2'
     batch_size, n_epoch = 100, 500
     n_hidden = 64
     destroy = False
-    vae = VAE1(batch_size=batch_size, n_epoch=n_epoch,
-               n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
-    optimizer = 'adam'
-    vae.deep_model.compile(loss=['kld', 'mse'], loss_weights=[0.1, 1], optimizer=optimizer)
-    vae.deep_model.summary()
+    x = get_input(batch_size, destroy, save_dir)
+
+    # vae = VAE1(batch_size=batch_size, n_epoch=n_epoch,
+    #            n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
+    # optimizer = 'adam'
+    # vae.vae.compile(optimizer=optimizer)
+
+    dcec = DCEC(n_clusters=60)
+    dcec.compile()
+
+    # pre-training
+    dcec.init_cae(x=x, batch_size=batch_size, cae_weights='results/vae2/pretrain_cae_model.h5', save_dir=save_dir)
+    # real training
+    # dcec.fit(x=x, batch_size=batch_size)
+    # predict
+    dcec.load_weights(weights_path='results/temp/dcec_model_4125.h5')
+    clusters = dcec.predict(x=x, batch_size=batch_size)
+
+    fasta = "/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta"
+    # fastaDict = sr.readContigs(fasta, numberOfSamples=10000, onlySequence=False)
+    fastaDict = readContigs(fasta, onlySequence=False)
+    binsDict = mapBinAndContigNames(fastaDict, clusters)
+    writeBins("results/vae2/bins", bins=binsDict, fastadict=fastaDict)
+    print(f'predict size: ', len(clusters))
 
 
 if __name__ == "__main__":
