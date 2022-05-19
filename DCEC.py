@@ -8,7 +8,7 @@ import metrics
 from ConvAE2 import CAE2, dice_coef_loss
 from reader.DCECDataGenerator import DCECDataGenerator
 from reader.DataGenerator import DataGenerator
-from datasets import get_sequence_samples, decode
+from datasets import get_sequence_samples, decode, get_azolla_samples
 from scipy.special import log_softmax
 
 class ClusteringLayer(keras.layers.Layer):
@@ -124,7 +124,7 @@ class DCEC(object):
         return self.nll_loss(y_true, y_pred)
     
     
-    def pretrain(self, x, batch_size=256, epochs=10, optimizer='adam', save_dir='results/temp'):
+    def pretrain(self, x, batch_size=256, epochs=1, optimizer='adam', save_dir='results/temp'):
         print('...Pretraining...')
         cosine_loss = tf.keras.losses.CosineSimilarity()
         self.cae.compile(optimizer=optimizer, loss=tf.keras.losses.CosineSimilarity())
@@ -371,12 +371,12 @@ if __name__ == "__main__":
         os.makedirs(args.save_dir)
 
     # x = get_sequence_samples(n_samples=1000)
-    x, y = get_sequence_samples()
-    #y = None
+    x = get_azolla_samples()
+    y = None
     
-    y = np.array(y).astype(np.int64)
+    #y = np.array(y).astype(np.int64)
 
-    print("Number of bins: ", len(set(y)))
+    #print("Number of bins: ", len(set(y)))
 
     # prepare the DCEC model
     # shape_ = x.shape[1:]

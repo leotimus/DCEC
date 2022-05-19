@@ -1,3 +1,5 @@
+import csv, os
+
 
 def readContigs(fastaFile, minLength=100, numberOfSamples=None, onlySequence=True):
     """Parses a FASTA file open in binary reading mode.
@@ -9,6 +11,7 @@ def readContigs(fastaFile, minLength=100, numberOfSamples=None, onlySequence=Tru
     Outputs:
         raws view of sequences
     """
+    
 
     if minLength < 4:
         raise ValueError('Minlength must be at least 4, not {}'.format(minLength))
@@ -22,7 +25,10 @@ def readContigs(fastaFile, minLength=100, numberOfSamples=None, onlySequence=Tru
                 break
             else:
                 if len(entry) < minLength:
-                    continue
+                    logfile = open(save_dir + '/azolla_length.csv', 'a')
+                    logfile.write(len(entry))
+                    logfile.close()
+                continue
                 if onlySequence:
                     raws[entry.header] = entry.sequence
                 else:
