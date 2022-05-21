@@ -5,14 +5,33 @@ import vamb
 from keras.datasets import mnist
 import matplotlib.pyplot as plt
 import numpy as np
-from tensorflow.python.data import Dataset
 from vamb.__main__ import calc_tnf, calc_rpkm
-from vamb.vambtools import numpy_inplace_maskarray, zscore, write_npz
+from vamb.vambtools import numpy_inplace_maskarray, write_npz
 
-from DCEC import DCEC
+from DVMB import DVMB
 from reader.SequenceReader import readContigs
-from vae.VAE import VAE1
+from vae.VAE import VAE
 from writer.BinWriter import mapBinAndContigNames, writeBins
+
+
+def run_vamb_ptorch(batch_size, logfile, outdir, rpkm, tnf):
+    nsamples = rpkm.shape[1]
+    vae = vamb.encode.VAE(nsamples, nhiddens=None, nlatent=32,
+                          alpha=None, beta=200, dropout=None, cuda=False)
+    print(vae)
+    dataloader, mask = vamb.encode.make_dataloader(rpkm, tnf, batch_size,
+                                                   destroy=True, cuda=False)
+    vamb.vambtools.write_npz(os.path.join(outdir, 'mask.npz'), mask)
+    n_discarded = len(mask) - mask.sum()
+    print('', file=logfile)
+    modelpath = os.path.join(outdir, 'model.pt')
+    vae.trainmodel(dataloader, nepochs=500, lrate=1e-3, batchsteps=[25, 75, 150, 300],
+                   logfile=logfile, modelfile=modelpath)
+    print('', file=logfile)
+    latent = vae.encode(dataloader)
+    vamb.vambtools.write_npz(os.path.join(outdir, 'latent.npz'), latent)
+    del vae  # Needed to free "latent" array's memory references?
+    return mask, latent
 
 
 def run_vae_mnist():
@@ -28,10 +47,10 @@ def run_vae_mnist():
     save_dir = 'results/vae-mnist'
     batch_size, n_epoch = 100, 100
     n_hidden, z_dim = 256, 2
-    vae = VAE1(batch_size=batch_size, n_epoch=n_epoch, n_hidden=n_hidden, z_dim=z_dim, input_shape=input_shape)
+    vae = VAE(batch_size=batch_size, n_epoch=n_epoch, n_hidden=n_hidden, input_shape=input_shape)
 
-    vae.vae.fit(x_train, epochs=n_epoch, batch_size=batch_size, validation_data=(x_test, None))
-    vae.vae.save_weights(f'vae_mlp_mnist_latent_dim_{z_dim}.h5')
+    vae.model.fit(x_train, epochs=n_epoch, batch_size=batch_size, validation_data=(x_test, None))
+    vae.model.save_weights(f'vae_mlp_mnist_latent_dim_{z_dim}.h5')
 
     # vae.vae.load_weights(f'{save_dir}/vae.h5')
     filename = f'{save_dir}/vae_mean.png'
@@ -108,37 +127,50 @@ def run_vae_tnf_bam():
 
     inputs = get_input(batch_size, destroy, save_dir)
     # TODO improve
-    vae = VAE1(batch_size=batch_size, n_epoch=n_epoch,
-               n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
-    vae.vae.fit(x=inputs, epochs=n_epoch, batch_size=batch_size)
-    vae_predict = vae.vae.predict(x=inputs, batch_size=batch_size)
+    vae = VAE(batch_size=batch_size, n_epoch=n_epoch,
+              n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
+    vae.model.fit(x=inputs, epochs=n_epoch, batch_size=batch_size)
 
 
 def get_input(batch_size, destroy, save_dir):
     Path(save_dir).mkdir(parents=True, exist_ok=True)
     bams_path = ['/share_data/cami_low/bams/RL_S001.bam']
     fasta_path = '/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta'
+
     tnf_path = f'{save_dir}/tnf.npz'
+    if not Path(tnf_path).exists():
+        tnf_path = None
+    else:
+        fasta_path = None
+
     names_path = f'{save_dir}/names.npz'
+
     lengths_path = f'{save_dir}/lengths.npz'
+    if not Path(lengths_path).exists():
+        lengths_path = None
+
     rpkm_path = f'{save_dir}/rpkm.npz'
+    if not Path(rpkm_path).exists():
+        rpkm_path = None
+    else:
+        bams_path = None
+
     with open(f'{save_dir}/vectors.log', 'w') as logfile:
         tnf, contignames, contiglengths = calc_tnf(outdir=save_dir,
-                                                   fastapath=None,
+                                                   fastapath=fasta_path,
                                                    tnfpath=tnf_path,
                                                    namespath=names_path,
                                                    lengthspath=lengths_path,
                                                    mincontiglength=100,
                                                    logfile=logfile)
         if not Path(names_path).exists():
-            write_npz(os.path.join(save_dir, 'names.npz'), contignames)
+            write_npz(names_path, contignames)
         rpkm = calc_rpkm(outdir=save_dir,
-                         bampaths=None,
+                         bampaths=bams_path,
                          rpkmpath=rpkm_path,
                          jgipath=None, mincontiglength=100, refhash=None, ncontigs=len(tnf), minalignscore=None,
                          minid=None,
                          subprocesses=min(os.cpu_count(), 8), logfile=logfile)
-    # return run_vamb_ptorch(batch_size, logfile, outdir, rpkm, tnf)
     mask = tnf.sum(axis=1) != 0
     # If multiple samples, also include nonzero depth as requirement for accept
     # of sequences
@@ -174,28 +206,8 @@ def get_input(batch_size, destroy, save_dir):
     return inputs
 
 
-def run_vamb_ptorch(batch_size, logfile, outdir, rpkm, tnf):
-    nsamples = rpkm.shape[1]
-    vae = vamb.encode.VAE(nsamples, nhiddens=None, nlatent=32,
-                          alpha=None, beta=200, dropout=None, cuda=False)
-    print(vae)
-    dataloader, mask = vamb.encode.make_dataloader(rpkm, tnf, batch_size,
-                                                   destroy=True, cuda=False)
-    vamb.vambtools.write_npz(os.path.join(outdir, 'mask.npz'), mask)
-    n_discarded = len(mask) - mask.sum()
-    print('', file=logfile)
-    modelpath = os.path.join(outdir, 'model.pt')
-    vae.trainmodel(dataloader, nepochs=500, lrate=1e-3, batchsteps=[25, 75, 150, 300],
-                   logfile=logfile, modelfile=modelpath)
-    print('', file=logfile)
-    latent = vae.encode(dataloader)
-    vamb.vambtools.write_npz(os.path.join(outdir, 'latent.npz'), latent)
-    del vae  # Needed to free "latent" array's memory references?
-    return mask, latent
-
-
 def run_deep_clustering():
-    save_dir, outdir = 'results/vae2', 'results/vae2'
+    save_dir = 'results/dvmb0'
     batch_size, n_epoch = 100, 500
     n_hidden = 64
     destroy = False
@@ -206,22 +218,25 @@ def run_deep_clustering():
     # optimizer = 'adam'
     # vae.vae.compile(optimizer=optimizer)
 
-    dcec = DCEC(n_clusters=60)
-    dcec.compile()
+    dvmb = DVMB(n_hidden=n_hidden, batch_size=batch_size, n_epoch=n_epoch, n_clusters=60, save_dir=save_dir)
+    dvmb.compile()
 
     # pre-training
-    dcec.init_cae(x=x, batch_size=batch_size, cae_weights='results/vae2/pretrain_cae_model.h5', save_dir=save_dir)
+    # dvmb.init_vae(x=x)
+    # use pre-trained weights
+    dvmb.init_vae(x=x, vae_weights=f'{save_dir}/pretrain_vae_model.h5')
     # real training
-    # dcec.fit(x=x, batch_size=batch_size)
+    # dvmb.fit(x=x, batch_size=batch_size)
+    dvmb.load_weights(weights_path=f'{save_dir}/dcec_model_final.h5')
     # predict
-    dcec.load_weights(weights_path='results/temp/dcec_model_4125.h5')
-    clusters = dcec.predict(x=x, batch_size=batch_size)
+    clusters = dvmb.predict(x=x, batch_size=batch_size)
 
-    fasta = "/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta"
-    # fastaDict = sr.readContigs(fasta, numberOfSamples=10000, onlySequence=False)
+    # save to bins
+    fasta = '/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta'
     fastaDict = readContigs(fasta, onlySequence=False)
     binsDict = mapBinAndContigNames(fastaDict, clusters)
-    writeBins("results/vae2/bins", bins=binsDict, fastadict=fastaDict)
+    Path(f'{save_dir}/bins').mkdir(exist_ok=True)
+    writeBins(f'{save_dir}/bins', bins=binsDict, fastadict=fastaDict)
     print(f'predict size: ', len(clusters))
 
 

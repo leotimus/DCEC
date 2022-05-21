@@ -3,11 +3,11 @@ from keras.layers import Dense, Lambda
 from keras.losses import mse
 from tensorflow import keras
 
-class VAE1(object):
+class VAE(object):
 
     def __init__(self, batch_size=100, n_epoch=100, n_hidden=256, input_shape=None,
                  print_model=True, save_dir='results/'):
-        super(VAE1, self).__init__()
+        super(VAE, self).__init__()
         self.batch_size = batch_size
         self.n_epoch = n_epoch
         self.n_hidden = n_hidden
@@ -18,10 +18,10 @@ class VAE1(object):
         self.decoder = self.decoder_model(input_shape)
         self.outputs = self.decoder(self.encoder(self.encoder_input)[2])
 
-        self.vae = Model(self.encoder_input, self.outputs, name='vae')
+        self.model = Model(self.encoder_input, self.outputs, name='vae')
         if self.print_model:
-            self.vae.summary()
-            keras.utils.plot_model(self.vae, to_file=f'{self.save_dir}/vae.png', show_shapes=True)
+            self.model.summary()
+            keras.utils.plot_model(self.model, to_file=f'{self.save_dir}/vae.png', show_shapes=True)
 
         original_dim = input_shape[0]
         reconstruction_loss = mse(self.encoder_input, self.outputs)
@@ -32,8 +32,8 @@ class VAE1(object):
         kl_loss = K.sum(kl_loss, axis=-1)
         kl_loss *= -0.5
         vae_loss = K.mean(reconstruction_loss + kl_loss)
-        self.vae.add_loss(vae_loss)
-        self.vae.compile(optimizer='adam')
+        self.model.add_loss(vae_loss)
+        self.model.compile(optimizer='adam')
 
         # self.clustering_layer = ClusteringLayer(60, name='clustering')(self.encoder(self.encoder_input)[2])
         # self.deep_model: Model = Model(inputs=self.encoder_input, outputs=[self.clustering_layer, self.outputs], name='deep_clustering')
