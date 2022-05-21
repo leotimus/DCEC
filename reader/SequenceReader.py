@@ -25,10 +25,7 @@ def readContigs(fastaFile, minLength=100, numberOfSamples=None, onlySequence=Tru
                 break
             else:
                 if len(entry) < minLength:
-                    logfile = open(save_dir + '/azolla_length.csv', 'a')
-                    logfile.write(len(entry))
-                    logfile.close()
-                continue
+                    continue
                 if onlySequence:
                     raws[entry.header] = entry.sequence
                 else:

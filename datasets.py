@@ -86,15 +86,21 @@ def load_fasta(n_samples=None, contig_len=1000):
     return x, None
 
 def get_azolla_samples(n_samples=None, min_length=750):
+    contigLengths = open('./results/contig_length.txt', 'w')
+
     fastaFile = "C:/Python/Datasets/azolla.fasta"
     contigs = sr.readContigs(fastaFile, numberOfSamples=n_samples)
     print(f'Parsed {len(contigs.keys())} contigs')
     newContigs = dict()
     for key, value in contigs.items():
+        contigLengths.write(str(len(value)) + '\n')
         if len(value)>=min_length:
             newContigs[key] = value
+    
     print(len(newContigs.keys()))    
     lst = list(newContigs.values())
+
+    contigLengths.close()
     return lst
 
 def get_sequence_samples(n_samples=None, min_length=750):
