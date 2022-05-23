@@ -207,18 +207,19 @@ def get_input(batch_size, destroy, save_dir):
 
 
 def run_deep_clustering():
-    save_dir = 'results/dvmb0'
-    batch_size, n_epoch = 100, 500
+    save_dir = 'results/dvmb3-z-cls60-ep300-vae-kldmse'
+    batch_size, n_epoch = 100, 300
     n_hidden = 64
     destroy = False
     x = get_input(batch_size, destroy, save_dir)
+    n_clusters = 60
 
     # vae = VAE1(batch_size=batch_size, n_epoch=n_epoch,
     #            n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
     # optimizer = 'adam'
     # vae.vae.compile(optimizer=optimizer)
 
-    dvmb = DVMB(n_hidden=n_hidden, batch_size=batch_size, n_epoch=n_epoch, n_clusters=60, save_dir=save_dir)
+    dvmb = DVMB(n_hidden=n_hidden, batch_size=batch_size, n_epoch=n_epoch, n_clusters=n_clusters, save_dir=save_dir)
     dvmb.compile()
 
     # pre-training
@@ -226,10 +227,12 @@ def run_deep_clustering():
     # use pre-trained weights
     dvmb.init_vae(x=x, vae_weights=f'{save_dir}/pretrain_vae_model.h5')
     # real training
-    # dvmb.fit(x=x, batch_size=batch_size)
-    dvmb.load_weights(weights_path=f'{save_dir}/dcec_model_final.h5')
+    dvmb.fit(x=x, batch_size=batch_size, maxiter=5000)
+    # dvmb.load_weights(weights_path=f'{save_dir}/dcec_model_final.h5')
     # predict
-    clusters = dvmb.predict(x=x, batch_size=batch_size)
+    print(f'DVMB loss labels {dvmb.model.metrics_names}')
+    print(f'VAE loss labels {dvmb.vae.model.metrics_names}')
+    clusters = dvmb.predict(x=x)
 
     # save to bins
     fasta = '/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta'

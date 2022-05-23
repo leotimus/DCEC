@@ -26,7 +26,6 @@ class VAE(object):
         original_dim = input_shape[0]
         reconstruction_loss = mse(self.encoder_input, self.outputs)
         # reconstruction_loss = binary_crossentropy(inputs, outputs)
-        # reconstruction_loss = binary_crossentropy(inputs, outputs)
         reconstruction_loss *= original_dim
         kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
         kl_loss = K.sum(kl_loss, axis=-1)
@@ -34,13 +33,6 @@ class VAE(object):
         vae_loss = K.mean(reconstruction_loss + kl_loss)
         self.model.add_loss(vae_loss)
         self.model.compile(optimizer='adam')
-
-        # self.clustering_layer = ClusteringLayer(60, name='clustering')(self.encoder(self.encoder_input)[2])
-        # self.deep_model: Model = Model(inputs=self.encoder_input, outputs=[self.clustering_layer, self.outputs], name='deep_clustering')
-        # if self.print_model:
-        #     self.deep_model.summary()
-        #     keras.utils.plot_model(self.deep_model, to_file=f'{self.save_dir}/vae_deep.png', show_shapes=True)
-        # self.deep_model.compile(optimizer='adam', loss='mse')
 
     def create_encoder(self, input_shape) -> (Input, Model, Dense, Dense):
         inputs = Input(shape=input_shape, name='encoder_input')

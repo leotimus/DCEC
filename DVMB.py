@@ -34,8 +34,7 @@ class ClusteringLayer(keras.layers.Layer):
         self.n_clusters = n_clusters
         self.alpha = alpha
         self.initial_weights = weights
-        # self.input_spec = keras.layers.InputSpec(ndim=2)
-        self.input_spec = keras.layers.InputSpec()
+        self.input_spec = keras.layers.InputSpec(ndim=2)
 
     def build(self, input_shape):
         assert len(input_shape) == 2
@@ -86,17 +85,20 @@ class DVMB(object):
                   n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
         self.vae.model.compile(optimizer='adam')
 
-        encoder_latent_space_layer = self.vae.encoder(self.vae.encoder_input)[2]
-        self.clustering_layer = ClusteringLayer(60, name='clustering')(encoder_latent_space_layer)
+        sampling_layer = self.vae.encoder(self.vae.encoder_input)
+        encoder_latent_space_layer = sampling_layer[2]
+        self.clustering_layer = ClusteringLayer(self.n_clusters, name='clustering')(encoder_latent_space_layer)
 
         # Define DVMB model
-        self.model = keras.models.Model(inputs=self.vae.encoder_input,
+        self.model: keras.models.Model = keras.models.Model(inputs=self.vae.encoder_input,
                                         outputs=[self.clustering_layer, self.vae.outputs])
+
+        # self.model.add_loss(losses)
         keras.utils.plot_model(self.model, to_file=f'{save_dir}/dvmb.png', show_shapes=True)
 
     def pretrain(self, x, batch_size=256, epochs=500, optimizer='adam'):
         print('...Pretraining...')
-        self.vae.model.compile(optimizer=optimizer, loss='mse')
+        self.vae.model.compile(optimizer=optimizer)
         from keras.callbacks import CSVLogger
         csv_logger = CSVLogger(f'{self.save_dir}/pretrain_log.csv')
 
@@ -115,25 +117,8 @@ class DVMB(object):
     def extract_feature(self, x):  # extract features from before clustering layer
         return self.vae.encoder.predict(x)
 
-    def predict(self, x, batch_size):
-        q = None
-        complete = False
-        p_index = 0
-        size = len(x)
-        while not complete:
-            x_ = x[p_index * batch_size:(p_index + 1) * batch_size]
-            q_, tmp = self.model.predict(x=x_, batch_size=None, verbose=0)
-            del tmp
-            if q is None:
-                q = q_
-            else:
-                q = np.append(q, q_, axis=0)
-            if (p_index + 1) * batch_size >= size:
-                complete = True
-                del q_
-                del x_
-            else:
-                p_index += 1
+    def predict(self, x):
+        q, tmp = self.model.predict(x=x, batch_size=self.batch_size, verbose=0)
         return q.argmax(1)
 
     @staticmethod
@@ -176,24 +161,8 @@ class DVMB(object):
         size = len(x)
         for ite in range(int(maxiter)):
             if ite % update_interval == 0:
-                # predict on batch
-                q = None
-                complete = False
-                p_index = 0
-                while not complete:
-                    x_ = x[p_index * batch_size:(p_index + 1) * batch_size]
-                    q_, tmp = self.model.predict(x=x_, batch_size=None, verbose=0)
-                    del tmp
-                    if q is None:
-                        q = q_
-                    else:
-                        q = np.append(q, q_, axis=0)
-                    if (p_index + 1) * batch_size >= size:
-                        complete = True
-                        del q_
-                        del x_
-                    else:
-                        p_index += 1
+                q, tmp = self.model.predict(x=x, batch_size=self.batch_size, verbose=0)
+                del tmp
                 p = self.target_distribution(q)  # update the auxiliary target distribution p
 
                 # evaluate the clustering performance
@@ -227,7 +196,7 @@ class DVMB(object):
                 y_ = p[index * batch_size:(index + 1) * batch_size]
                 loss = self.model.train_on_batch(x=x_, y=[y_, x_])
                 index += 1
-            print(f'Observe loss: {loss}.')
+            print(f'Observe loss: {loss}')
             del x_
             del y_
 
