@@ -81,22 +81,38 @@ class DVMB(object):
         self.batch_size = batch_size
         self.n_epoch = n_epoch
         self.y_pred = []
+        self.z_log_var = None
+        self.z_mean = None
+        self.loss_func = self.vae_loss()
 
         self.vae = VAE(batch_size=batch_size, n_epoch=n_epoch,
-                  n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
-        self.vae.model.compile(optimizer='adam')
+                  n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir, loss_func=self.vae_loss())
+
+        #not in dcec version
+        #self.vae.model.compile(optimizer='adam')
 
         encoder_latent_space_layer = self.vae.encoder(self.vae.encoder_input)[2]
         self.clustering_layer = ClusteringLayer(60, name='clustering')(encoder_latent_space_layer)
+        self.z_log_var = self.vae.encoder(self.vae.encoder_input)[1]
+      
 
         # Define DVMB model
         self.model = keras.models.Model(inputs=self.vae.encoder_input,
                                         outputs=[self.clustering_layer, self.vae.outputs])
         keras.utils.plot_model(self.model, to_file=f'{save_dir}/dvmb.png', show_shapes=True)
 
+    # def vae_loss(self, y_true, y_pred):
+    #     """ Calculate loss = reconstruction loss + KL loss for each data in minibatch """
+    #     # E[log P(X|z)]
+    #     recon = K.sum(K.binary_crossentropy(y_pred, y_true), axis=1)
+    #     # D_KL(Q(z|X) || P(z|X)); calculate in closed form as both dist. are Gaussian
+    #     kl = 0.5 * K.sum(K.exp(self.z_log_var))
+    #     return recon + kl
+
+
     def pretrain(self, x, batch_size=256, epochs=500, optimizer='adam'):
         print('...Pretraining...')
-        self.vae.model.compile(optimizer=optimizer, loss='mse')
+        self.vae.model.compile(optimizer=optimizer, loss='msi')
         from keras.callbacks import CSVLogger
         csv_logger = CSVLogger(f'{self.save_dir}/pretrain_log.csv')
 
@@ -252,12 +268,18 @@ class DVMB(object):
 
     def init_vae(self, vae_weights=None, x=None):
         t0 = time()
-        if not self.pretrained and vae_weights is None:
-            print(f'pretraining VAE using default hyper-parameters:')
-            print(f'optimizer=\'adam\', epochs={self.n_epoch}')
-            self.pretrain(x, self.batch_size)
-            self.pretrained = True
-        elif vae_weights is not None:
-            self.vae.model.load_weights(vae_weights)
-            print('vae_weights is loaded successfully.')
-        print('Pretrain time:  ', time() - t0)
+
+        print(f'pretraining VAE using default hyper-parameters:')
+        print(f'optimizer=\'adam\', epochs={self.n_epoch}')
+        self.pretrain(x, self.batch_size)
+        self.pretrained = True
+
+        # if not self.pretrained and vae_weights is None:
+        #     print(f'pretraining VAE using default hyper-parameters:')
+        #     print(f'optimizer=\'adam\', epochs={self.n_epoch}')
+        #     self.pretrain(x, self.batch_size)
+        #     self.pretrained = True
+        # elif vae_weights is not None:
+        #     self.vae.model.load_weights(vae_weights)
+        #     print('vae_weights is loaded successfully.')
+        # print('Pretrain time:  ', time() - t0)

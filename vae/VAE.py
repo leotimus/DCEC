@@ -6,15 +6,16 @@ from tensorflow import keras
 class VAE(object):
 
     def __init__(self, batch_size=100, n_epoch=100, n_hidden=256, input_shape=None,
-                 print_model=True, save_dir='results/'):
+                 print_model=True, save_dir='results/', loss_func=None):
         super(VAE, self).__init__()
         self.batch_size = batch_size
         self.n_epoch = n_epoch
         self.n_hidden = n_hidden
         self.print_model = print_model
         self.save_dir = save_dir
+        self.loss_func = self.vae_loss()
 
-        self.encoder_input, self.encoder, z_mean, z_log_var = self.create_encoder(input_shape)
+        self.encoder_input, self.encoder, self.z_mean, self.z_log_var = self.create_encoder(input_shape)
         self.decoder = self.decoder_model(input_shape)
         self.outputs = self.decoder(self.encoder(self.encoder_input)[2])
 
@@ -24,16 +25,16 @@ class VAE(object):
             keras.utils.plot_model(self.model, to_file=f'{self.save_dir}/vae.png', show_shapes=True)
 
         original_dim = input_shape[0]
-        reconstruction_loss = mse(self.encoder_input, self.outputs)
+        #reconstruction_loss = mse(self.encoder_input, self.outputs)
         # reconstruction_loss = binary_crossentropy(inputs, outputs)
         # reconstruction_loss = binary_crossentropy(inputs, outputs)
-        reconstruction_loss *= original_dim
-        kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
-        kl_loss = K.sum(kl_loss, axis=-1)
-        kl_loss *= -0.5
-        vae_loss = K.mean(reconstruction_loss + kl_loss)
-        self.model.add_loss(vae_loss)
-        self.model.compile(optimizer='adam')
+        #reconstruction_loss *= original_dim
+        #kl_loss = 1 + self.z_log_var - K.square(self.z_mean) - K.exp(self.z_log_var)
+        #kl_loss = K.sum(kl_loss, axis=-1)
+        #kl_loss *= -0.5
+        #vae_loss = K.mean(reconstruction_loss + kl_loss)
+        #self.model.add_loss(vae_loss)
+        self.model.compile(optimizer='adam', loss=self.loss_func, metrics=[self.calculate_kl_loss, self.mse_loss])
 
         # self.clustering_layer = ClusteringLayer(60, name='clustering')(self.encoder(self.encoder_input)[2])
         # self.deep_model: Model = Model(inputs=self.encoder_input, outputs=[self.clustering_layer, self.outputs], name='deep_clustering')
@@ -65,6 +66,30 @@ class VAE(object):
         # by default, random_normal has mean=0 and std=1.0
         epsilon = K.random_normal(shape=(batch, dim))
         return z_mean + K.exp(0.5 * z_log_var) * epsilon
+    
+    def calculate_kl_loss(self):
+        kl_loss = 1 + self.z_log_var - K.square(self.z_mean) - K.exp(self.z_log_var)
+        kl_loss = K.sum(kl_loss, axis=-1)
+        kl_loss *= -0.5
+        return kl_loss
+
+    def mse_loss(self, y_true, y_pred):
+        ms_error = mse(y_true, y_pred)
+        return ms_error
+
+    def vae_loss(self):
+        #wrapper function
+        kl_loss = self.calculate_kl_loss
+        mse = self.mse_loss
+
+        def reconstruction_loss(y_true, y_pred):
+            mse_r = mse(y_true, y_pred)
+            vae_loss = kl_loss() + mse_r
+            #vae_loss = mse_r
+            return vae_loss
+
+        return reconstruction_loss
+
 
     def decoder_model(self, input_shape):
         latent_inputs = Input(shape=(int(self.n_hidden / 2),), name='z_sampling')

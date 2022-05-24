@@ -8,7 +8,7 @@ import numpy as np
 from vamb.__main__ import calc_tnf, calc_rpkm
 from vamb.vambtools import numpy_inplace_maskarray, write_npz
 
-from DVMB import DVMB
+from ..DVMB import DVMB
 from reader.SequenceReader import readContigs
 from vae.VAE import VAE
 from writer.BinWriter import mapBinAndContigNames, writeBins
@@ -134,8 +134,8 @@ def run_vae_tnf_bam():
 
 def get_input(batch_size, destroy, save_dir):
     Path(save_dir).mkdir(parents=True, exist_ok=True)
-    bams_path = ['/share_data/cami_low/bams/RL_S001.bam']
-    fasta_path = '/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta'
+    bams_path = ['/mnt/c/Python/Datasets/RL_S001.bam']
+    fasta_path = '/mnt/c/Python/Datasets/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta'
 
     tnf_path = f'{save_dir}/tnf.npz'
     if not Path(tnf_path).exists():
@@ -226,8 +226,8 @@ def run_deep_clustering():
     # use pre-trained weights
     dvmb.init_vae(x=x, vae_weights=f'{save_dir}/pretrain_vae_model.h5')
     # real training
-    # dvmb.fit(x=x, batch_size=batch_size)
-    dvmb.load_weights(weights_path=f'{save_dir}/dcec_model_final.h5')
+    dvmb.fit(x=x, batch_size=batch_size)
+    #dvmb.load_weights(weights_path=f'{save_dir}/dcec_model_final.h5')
     # predict
     clusters = dvmb.predict(x=x, batch_size=batch_size)
 
