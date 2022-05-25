@@ -14,7 +14,7 @@ class VAE(object):
         self.print_model = print_model
         self.save_dir = save_dir
 
-        self.encoder_input, self.encoder, z_mean, z_log_var = self.create_encoder(input_shape)
+        self.encoder_input, self.encoder, self.z_mean, self.z_log_var = self.create_encoder(input_shape)
         self.decoder = self.decoder_model(input_shape)
         self.outputs = self.decoder(self.encoder(self.encoder_input)[2])
 
@@ -27,7 +27,7 @@ class VAE(object):
         reconstruction_loss = mse(self.encoder_input, self.outputs)
         # reconstruction_loss = binary_crossentropy(inputs, outputs)
         reconstruction_loss *= original_dim
-        kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
+        kl_loss = 1 + self.z_log_var - K.square(self.z_mean) - K.exp(self.z_log_var)
         kl_loss = K.sum(kl_loss, axis=-1)
         kl_loss *= -0.5
         vae_loss = K.mean(reconstruction_loss + kl_loss)
@@ -58,7 +58,7 @@ class VAE(object):
         epsilon = K.random_normal(shape=(batch, dim))
         return z_mean + K.exp(0.5 * z_log_var) * epsilon
 
-    def decoder_model(self, input_shape):
+    def decoder_model(self, input_shape) -> Model:
         latent_inputs = Input(shape=(int(self.n_hidden / 2),), name='z_sampling')
         x = Dense(self.n_hidden, activation='relu')(latent_inputs)
         x = keras.layers.BatchNormalization()(x)

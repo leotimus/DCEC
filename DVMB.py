@@ -82,18 +82,18 @@ class DVMB(object):
         self.y_pred = []
 
         self.vae = VAE(batch_size=batch_size, n_epoch=n_epoch,
-                  n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
+                       n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
         self.vae.model.compile(optimizer='adam')
 
         sampling_layer = self.vae.encoder(self.vae.encoder_input)
-        encoder_latent_space_layer = sampling_layer[2]
+        encoder_latent_space_layer = sampling_layer[0]
         self.clustering_layer = ClusteringLayer(self.n_clusters, name='clustering')(encoder_latent_space_layer)
 
         # Define DVMB model
         self.model: keras.models.Model = keras.models.Model(inputs=self.vae.encoder_input,
-                                        outputs=[self.clustering_layer, self.vae.outputs])
+                                                            outputs=[self.clustering_layer, self.vae.outputs])
 
-        # self.model.add_loss(losses)
+        self.model.summary()
         keras.utils.plot_model(self.model, to_file=f'{save_dir}/dvmb.png', show_shapes=True)
 
     def pretrain(self, x, batch_size=256, epochs=500, optimizer='adam'):
@@ -151,9 +151,7 @@ class DVMB(object):
         logwriter = csv.DictWriter(logfile, fieldnames=['iter', 'acc', 'nmi', 'ari', 'L', 'Lc', 'Lr'])
         logwriter.writeheader()
 
-        # save_interval = x.shape[0] / batch_size * 5
-        # save_interval = len(self.y_pred) / batch_size * 5
-        save_interval = 50
+        save_interval = x.shape[0] / batch_size * 5
         print(f'MaxIter: {maxiter}, Save interval: {save_interval}, Update interval: {update_interval}.')
 
         loss = [0, 0, 0]
@@ -218,6 +216,8 @@ class DVMB(object):
         t2 = time()
         print('Clustering time:', t2 - t1)
         print('Total time:     ', t2 - t0)
+
+
 
     def init_vae(self, vae_weights=None, x=None):
         t0 = time()

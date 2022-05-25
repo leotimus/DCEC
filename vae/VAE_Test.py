@@ -5,6 +5,10 @@ import vamb
 from keras.datasets import mnist
 import matplotlib.pyplot as plt
 import numpy as np
+from keras.layers import Dense
+from keras.losses import mse, kld
+import keras.backend as K
+from keras.models import Model
 from vamb.__main__ import calc_tnf, calc_rpkm
 from vamb.vambtools import numpy_inplace_maskarray, write_npz
 
@@ -206,8 +210,33 @@ def get_input(batch_size, destroy, save_dir):
     return inputs
 
 
+def custom_vae_loss(mean: Dense, variant: Dense, decoder: Model):
+
+    def loss(y_true, y_pre):
+        print(f'get model mean: {mean}')
+        print(f'get model variant: {variant}')
+        print(f'get decoder input: {decoder.inputs}')
+        # print(f'loss1: y_true={y_true}, y_pred={y_pre}')
+        kl_loss = 1 + variant - K.square(mean) - K.exp(variant)
+        kl_loss = K.sum(kl_loss, axis=-1)
+        kl_loss *= -0.5
+        kl_loss = kld(y_true, y_pre)
+        reconstruction_loss = mse(y_true, y_pre)
+        vae_loss = reconstruction_loss + kl_loss
+        print(f'Got new recons loss {reconstruction_loss}')
+        print(f'Got new kl loss {kl_loss}')
+        print(f'Got new vae loss {vae_loss}')
+        return vae_loss
+
+    return loss
+
+def custom_kld_loss(y, y_):
+    # print(f'loss2: va1={y}, va2={y_}')
+    return kld(y, y_)
+
+
 def run_deep_clustering():
-    save_dir = 'results/dvmb3-z-cls60-ep300-vae-kldmse'
+    save_dir = 'results/dvm5-mean-60-ep500-it5000-klmse-0.1_1'
     batch_size, n_epoch = 100, 300
     n_hidden = 64
     destroy = False
@@ -220,7 +249,8 @@ def run_deep_clustering():
     # vae.vae.compile(optimizer=optimizer)
 
     dvmb = DVMB(n_hidden=n_hidden, batch_size=batch_size, n_epoch=n_epoch, n_clusters=n_clusters, save_dir=save_dir)
-    dvmb.compile()
+    # dvmb.compile(loss=[custom_kld_loss, custom_vae_loss(dvmb.vae.z_mean, dvmb.vae.z_log_var, dvmb.vae.decoder)])
+    dvmb.compile(loss=['kld', 'mse'])
 
     # pre-training
     # dvmb.init_vae(x=x)
