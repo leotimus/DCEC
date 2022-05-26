@@ -83,7 +83,6 @@ class DVMB(object):
 
         self.vae = VAE(batch_size=batch_size, n_epoch=n_epoch,
                        n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
-        self.vae.model.compile(optimizer='adam')
 
         sampling_layer = self.vae.encoder(self.vae.encoder_input)
         encoder_latent_space_layer = sampling_layer[0]
@@ -96,9 +95,8 @@ class DVMB(object):
         self.model.summary()
         keras.utils.plot_model(self.model, to_file=f'{save_dir}/dvmb.png', show_shapes=True)
 
-    def pretrain(self, x, batch_size=256, epochs=500, optimizer='adam'):
+    def pretrain(self, x, batch_size=256, epochs=500):
         print('...Pretraining...')
-        self.vae.model.compile(optimizer=optimizer)
         from keras.callbacks import CSVLogger
         csv_logger = CSVLogger(f'{self.save_dir}/pretrain_log.csv')
 
@@ -187,11 +185,13 @@ class DVMB(object):
             if (index + 1) * batch_size >= size:
                 x_ = x[index * batch_size::]
                 y_ = p[index * batch_size::]
+                predict = self.vae.encoder.predict(x=x_)
                 loss = self.model.train_on_batch(x=x_, y=[y_, x_])
                 index = 0
             else:
                 x_ = x[index * batch_size:(index + 1) * batch_size]
                 y_ = p[index * batch_size:(index + 1) * batch_size]
+                predict = self.vae.encoder.predict(x=x_)
                 loss = self.model.train_on_batch(x=x_, y=[y_, x_])
                 index += 1
             print(f'Observe loss: {loss}')

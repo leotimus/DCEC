@@ -15,7 +15,22 @@ from vamb.vambtools import numpy_inplace_maskarray, write_npz
 from DVMB import DVMB
 from reader.SequenceReader import readContigs
 from vae.VAE import VAE
+from vae.VAE_ORG import VAE_ORG
 from writer.BinWriter import mapBinAndContigNames, writeBins
+
+
+def test_vamb_ptorch():
+    with open('results/vamb/vectors.log', 'w') as logfile:
+        tnfs, contignames, contiglengths = calc_tnf(outdir='results/vamb',
+                                                    fastapath='/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta',
+                                                    tnfpath=None, namespath=None, lengthspath=None, mincontiglength=100,
+                                                    logfile=logfile)
+        rpkms = calc_rpkm(outdir='results/vamb', bampaths=['/share_data/cami_low/bams/RL_S001.bam'], rpkmpath=None,
+                          jgipath=None, mincontiglength=100, refhash=None, ncontigs=len(tnfs), minalignscore=None,
+                          minid=None,
+                          subprocesses=min(os.cpu_count(), 8), logfile=logfile)
+        print(f'tnfs shape: {tnfs.shape}, rpkms shape: {rpkms}')
+        run_vamb_ptorch(256, 'results/vamb', rpkms, tnfs)
 
 
 def run_vamb_ptorch(batch_size, logfile, outdir, rpkm, tnf):
@@ -48,13 +63,15 @@ def run_vae_mnist():
     x_train = x_train.astype('float32') / 255
     x_test = x_test.astype('float32') / 255
     input_shape = (original_dim,)
-    save_dir = 'results/vae-mnist'
+    save_dir = 'results/vae-org-mnist'
+    Path(save_dir).mkdir(parents=True, exist_ok=True)
     batch_size, n_epoch = 100, 100
     n_hidden, z_dim = 256, 2
-    vae = VAE(batch_size=batch_size, n_epoch=n_epoch, n_hidden=n_hidden, input_shape=input_shape)
 
-    vae.model.fit(x_train, epochs=n_epoch, batch_size=batch_size, validation_data=(x_test, None))
-    vae.model.save_weights(f'vae_mlp_mnist_latent_dim_{z_dim}.h5')
+    vae = VAE_ORG(batch_size=batch_size, n_epoch=n_epoch, n_hidden=n_hidden, input_shape=input_shape, z_dim=z_dim)
+    vae.vae.fit(x_train, epochs=n_epoch, batch_size=batch_size, validation_data=(x_test, None))
+    vae.vae.save_weights(f'{save_dir}/vae_mlp_mnist_latent_dim_{z_dim}.h5')
+    # vae.vae.load_weights(f'{save_dir}/vae_mlp_mnist_latent_dim_{z_dim}.h5')
 
     # vae.vae.load_weights(f'{save_dir}/vae.h5')
     filename = f'{save_dir}/vae_mean.png'
@@ -274,6 +291,7 @@ def run_deep_clustering():
 
 
 if __name__ == "__main__":
+    # run_deep_clustering()
+    # test_vamb_ptorch()
     # run_vae_tnf_bam()
-    run_deep_clustering()
-    # run_vae_mnist()
+    run_vae_mnist()
