@@ -7,12 +7,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 from vamb.__main__ import calc_tnf, calc_rpkm
 from vamb.vambtools import numpy_inplace_maskarray, write_npz
-
+from VAE_ORG import VAE_ORG
 from DVMB import DVMB
 from reader.SequenceReader import readContigs
 from vae.VAE import VAE
 from writer.BinWriter import mapBinAndContigNames, writeBins
-
+from datasets import load_mnist
 
 def run_vamb_ptorch(batch_size, logfile, outdir, rpkm, tnf):
     nsamples = rpkm.shape[1]
@@ -205,44 +205,73 @@ def get_input(batch_size, destroy, save_dir):
     inputs = np.array(inputs)
     return inputs
 
+def run_vae_mnist():
+    global vae
+    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+    image_size = x_train.shape[1]
+    original_dim = image_size * image_size
+    x_train = np.reshape(x_train, [-1, original_dim])
+    x_test = np.reshape(x_test, [-1, original_dim])
+    x_train = x_train.astype('float32') / 255
+    x_test = x_test.astype('float32') / 255
+    input_shape = (original_dim,)
+    save_dir = 'results/vae-org-mnist'
+    Path(save_dir).mkdir(parents=True, exist_ok=True)
+    batch_size, n_epoch = 100, 100
+    n_hidden, z_dim = 256, 2
+
+    vae = VAE_ORG(batch_size=batch_size, n_epoch=n_epoch, n_hidden=n_hidden, input_shape=input_shape, z_dim=z_dim)
+    
+    vae.vae.add_loss(vae.calculate_kl_loss2())
+    vae.vae.compile(optimizer='adam')
+    vae.vae.fit(x_train, epochs=n_epoch, batch_size=batch_size, validation_data=(x_test, None))
+   
 def run_vae():
     save_dir = 'results/dvmb0'
     batch_size, n_epoch = 100, 500
     n_hidden = 64
     destroy = False
-    x = get_input(batch_size, destroy, save_dir)
+    #x = get_input(batch_size, destroy, save_dir)
+    x = load_mnist()
+    vae = VAE(batch_size=batch_size, n_epoch=n_epoch, n_hidden=n_hidden, input_shape=(104, ), print_model=True, save_dir=save_dir, loss_func=None)
 
-    vae = VAE(batch_size=batch_size, n_epoch=n_epoch, n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir, loss_func=None)
-    vae.model.compile(optimizer='adam', loss=vae.vae_loss())
+    vae.model.add_loss(vae.final_loss(vae.encoder_input, vae.outputs))
+    vae.model.add_loss(vae.calculate_kl_loss2())
+
+    #vae.model.add_loss(vae.vae_loss(vae.encoder))
+
+    #vae.model.compile(optimizer='adam', loss=vae.vae_loss())
+    vae.model.compile(optimizer='adam')
     vae.model.fit(x=x, y=x, batch_size=batch_size, epochs=100)
 
 def run_deep_clustering():
     save_dir = 'results/dvmb0'
-    batch_size, n_epoch = 100, 500
+    batch_size, n_epoch = 256, 100
     n_hidden = 64
     destroy = False
     x = get_input(batch_size, destroy, save_dir)
 
     # vae = VAE1(batch_size=batch_size, n_epoch=n_epoch,
     #            n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
-    # optimizer = 'adam'
-    # vae.vae.compile(optimizer=optimizer)
+      #optimizer = 'adam'
+      #vae.vae.compile(optimizer=optimizer)
 
-    dvmb = DVMB(n_hidden=n_hidden, batch_size=batch_size, n_epoch=n_epoch, n_clusters=60, save_dir=save_dir, loss_func=None)
-    dvmb.compile()
-
+    dvmb = DVMB(n_hidden=n_hidden, batch_size=256, n_epoch=300, n_clusters=60, save_dir=save_dir)
+    #dvmb.init_vae(x=x, vae_weights=None)
+    #dvmb.model.add_loss(dvmb.vae.final_loss(dvmb.vae.encoder_input, dvmb.vae.outputs))
+    #dvmb.compile()
     # pre-training
     # dvmb.init_vae(x=x)
     # use pre-trained weights
-    dvmb.init_vae(x=x, vae_weights=f'{save_dir}/pretrain_vae_model.h5')
+    
     # real training
-    dvmb.fit(x=x, batch_size=batch_size)
-    #dvmb.load_weights(weights_path=f'{save_dir}/dcec_model_final.h5')
+    #dvmb.fit(x=x, batch_size=batch_size)
+    dvmb.load_weights(weights_path=f'{save_dir}/cp/dcec_model_1050.h5')
     # predict
     clusters = dvmb.predict(x=x, batch_size=batch_size)
 
     # save to bins
-    fasta = '/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta'
+    fasta = f'{save_dir}/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta'
     fastaDict = readContigs(fasta, onlySequence=False)
     binsDict = mapBinAndContigNames(fastaDict, clusters)
     Path(f'{save_dir}/bins').mkdir(exist_ok=True)
@@ -252,5 +281,5 @@ def run_deep_clustering():
 
 if __name__ == "__main__":
     # run_vae_tnf_bam()
-    #run_deep_clustering()
-    run_vae()
+    run_deep_clustering()
+    #run_vae_mnist()

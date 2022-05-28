@@ -5,7 +5,7 @@ import keras.backend as K
 from tensorflow import keras
 from sklearn.cluster import KMeans
 import metrics
-from vae.VAE import VAE
+from VAE_Dense import VAE
 
 
 class ClusteringLayer(keras.layers.Layer):
@@ -72,7 +72,7 @@ class ClusteringLayer(keras.layers.Layer):
 
 
 class DVMB(object):
-    def __init__(self, n_hidden=64, batch_size=256, n_epoch=500, n_clusters=10, save_dir='results/vae2'):
+    def __init__(self, n_hidden=64, batch_size=256, n_epoch=100, n_clusters=60, save_dir='results/vae2'):
 
         super(DVMB, self).__init__()
         self.save_dir = save_dir
@@ -83,17 +83,17 @@ class DVMB(object):
         self.y_pred = []
         self.z_log_var = None
         self.z_mean = None
-        self.loss_func = self.vae_loss()
+      
 
         self.vae = VAE(batch_size=batch_size, n_epoch=n_epoch,
-                  n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir, loss_func=self.vae_loss())
+                  n_hidden=n_hidden, input_shape=(104, ), print_model=True, save_dir=save_dir)
 
         #not in dcec version
         #self.vae.model.compile(optimizer='adam')
 
-        encoder_latent_space_layer = self.vae.encoder(self.vae.encoder_input)[2]
+        encoder_latent_space_layer = self.vae.encoder(self.vae.encoder_input)
         self.clustering_layer = ClusteringLayer(60, name='clustering')(encoder_latent_space_layer)
-        self.z_log_var = self.vae.encoder(self.vae.encoder_input)[1]
+
       
 
         # Define DVMB model
@@ -110,9 +110,10 @@ class DVMB(object):
     #     return recon + kl
 
 
-    def pretrain(self, x, batch_size=256, epochs=500, optimizer='adam'):
+    def pretrain(self, x, batch_size=256, epochs=100, optimizer='adam'):
         print('...Pretraining...')
-        self.vae.model.compile(optimizer=optimizer, loss='msi')
+         #self.vae.model.add_loss(self.vae.final_loss(self.vae.encoder_input, self.vae.outputs))
+        self.vae.model.compile(optimizer=optimizer, loss='mse')
         from keras.callbacks import CSVLogger
         csv_logger = CSVLogger(f'{self.save_dir}/pretrain_log.csv')
 
@@ -132,6 +133,10 @@ class DVMB(object):
         return self.vae.encoder.predict(x)
 
     def predict(self, x, batch_size):
+
+        # q, _ = self.model.predict(x, verbose=0)
+        # return q.argmax(1)
+
         q = None
         complete = False
         p_index = 0
@@ -157,17 +162,18 @@ class DVMB(object):
         weight = q ** 2 / q.sum(0)
         return (weight.T / weight.sum(1)).T
 
+
     def compile(self, loss=['kld', 'mse'], loss_weights=[0.1, 1], optimizer='adam'):
         self.model.compile(loss=loss, loss_weights=loss_weights, optimizer=optimizer)
-
-    def fit(self, x, y=None, batch_size=256, maxiter=2e4, tol=1e-3, update_interval=140):
+    
+    def fit(self, x, y=None, batch_size=256, maxiter=2e4, tol=1e-2, update_interval=150):
         t0 = time()
         # Step 2: initialize cluster centers using k-means
         t1 = time()
         print(f'Initializing cluster centers with k-means {self.n_clusters}.')
         kmeans = KMeans(n_clusters=self.n_clusters, n_init=20)
         latent_space = self.vae.encoder.predict(x=x)
-        z = latent_space[2]
+        z = latent_space
         self.y_pred = kmeans.fit_predict(z)
         y_pred_last = np.copy(self.y_pred)
 
@@ -184,7 +190,7 @@ class DVMB(object):
 
         # save_interval = x.shape[0] / batch_size * 5
         # save_interval = len(self.y_pred) / batch_size * 5
-        save_interval = 50
+        save_interval = 150
         print(f'MaxIter: {maxiter}, Save interval: {save_interval}, Update interval: {update_interval}.')
 
         loss = [0, 0, 0]
@@ -192,28 +198,32 @@ class DVMB(object):
         size = len(x)
         for ite in range(int(maxiter)):
             if ite % update_interval == 0:
+
+                q, _ = self.model.predict(x, verbose=0)
+                p = self.target_distribution(q)
+                self.y_pred = q.argmax(1)
                 # predict on batch
-                q = None
-                complete = False
-                p_index = 0
-                while not complete:
-                    x_ = x[p_index * batch_size:(p_index + 1) * batch_size]
-                    q_, tmp = self.model.predict(x=x_, batch_size=None, verbose=0)
-                    del tmp
-                    if q is None:
-                        q = q_
-                    else:
-                        q = np.append(q, q_, axis=0)
-                    if (p_index + 1) * batch_size >= size:
-                        complete = True
-                        del q_
-                        del x_
-                    else:
-                        p_index += 1
-                p = self.target_distribution(q)  # update the auxiliary target distribution p
+                # q = None
+                # complete = False
+                # p_index = 0
+                # while not complete:
+                #     x_ = x[p_index * batch_size:(p_index + 1) * batch_size]
+                #     q_, tmp = self.model.predict(x=x_, batch_size=None, verbose=0)
+                #     del tmp
+                #     if q is None:
+                #         q = q_
+                #     else:
+                #         q = np.append(q, q_, axis=0)
+                #     if (p_index + 1) * batch_size >= size:
+                #         complete = True
+                #         del q_
+                #         del x_
+                #     else:
+                #         p_index += 1
+                # p = self.target_distribution(q)  # update the auxiliary target distribution p
 
                 # evaluate the clustering performance
-                self.y_pred = q.argmax(1)
+                
                 if y is not None:
                     acc = np.round(metrics.acc(y, self.y_pred), 5)
                     nmi = np.round(metrics.nmi(y, self.y_pred), 5)
@@ -225,6 +235,7 @@ class DVMB(object):
 
                 # check stop criterion
                 delta_label = np.sum(self.y_pred != y_pred_last).astype(np.float32) / self.y_pred.shape[0]
+                print(delta_label)
                 y_pred_last = np.copy(self.y_pred)
                 if ite > 0 and delta_label < tol:
                     print('delta_label ', delta_label, '< tol ', tol)
@@ -232,20 +243,25 @@ class DVMB(object):
                     logfile.close()
                     break
 
+
+                loss = self.model.train_on_batch(x=x, y=[p, x])
+                print(f'Observe loss: {loss}.')
             # train on batch
-            if (index + 1) * batch_size >= size:
-                x_ = x[index * batch_size::]
-                y_ = p[index * batch_size::]
-                loss = self.model.train_on_batch(x=x_, y=[y_, x_])
-                index = 0
-            else:
-                x_ = x[index * batch_size:(index + 1) * batch_size]
-                y_ = p[index * batch_size:(index + 1) * batch_size]
-                loss = self.model.train_on_batch(x=x_, y=[y_, x_])
-                index += 1
-            print(f'Observe loss: {loss}.')
-            del x_
-            del y_
+            # if (index + 1) * batch_size >= size:
+            #     x_ = x[index * batch_size::]
+            #     y_ = p[index * batch_size::]
+            #     loss = self.model.train_on_batch(x=x_, y=[y_, x_])
+            #      # ls = self.vae.encoder.predict(x=x_)
+            #     index = 0
+            # else:
+            #     x_ = x[index * batch_size:(index + 1) * batch_size]
+            #     y_ = p[index * batch_size:(index + 1) * batch_size]
+            #     ls = self.vae.encoder.predict(x=x_)
+            #     loss = self.model.train_on_batch(x=x_, y=[y_, x_])
+            #     index += 1
+            # print(f'Observe loss: {loss}.')
+            # del x_
+            # del y_
 
             # save intermediate model
             if ite != 0 and ite % save_interval == 0:
