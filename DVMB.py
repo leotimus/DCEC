@@ -166,7 +166,7 @@ class DVMB(object):
     def compile(self, loss=['kld', 'mse'], loss_weights=[0.1, 1], optimizer='adam'):
         self.model.compile(loss=loss, loss_weights=loss_weights, optimizer=optimizer)
     
-    def fit(self, x, y=None, batch_size=256, maxiter=2e4, tol=1e-2, update_interval=150):
+    def fit(self, x, y=None, batch_size=256, maxiter=20000, tol=1e-2, update_interval=150):
         t0 = time()
         # Step 2: initialize cluster centers using k-means
         t1 = time()

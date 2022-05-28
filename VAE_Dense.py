@@ -30,7 +30,9 @@ class VAE(object):
         inputs = Input(shape=input_shape, name='encoder_input')
         x = Dense(self.n_hidden, activation='relu')(inputs)
         x = keras.layers.BatchNormalization()(x)
-        output = Dense((self.n_hidden / 2), name='output')(x)
+        y = Dense((self.n_hidden / 2), activation='relu')(x)
+        y = keras.layers.BatchNormalization()(y)
+        output = Dense((self.n_hidden / 4), name='output')(y)
         output = keras.layers.BatchNormalization()(output)
         encoder = Model(inputs, output, name='encoder')
         if self.print_model:
@@ -44,10 +46,12 @@ class VAE(object):
 
 
     def decoder_model(self, input_shape):
-        latent_inputs = Input(shape=(int(self.n_hidden / 2),), name='z')
-        x = Dense(self.n_hidden, activation='relu')(latent_inputs)
+        latent_inputs = Input(shape=(int(self.n_hidden / 4),), name='z')
+        x = Dense((self.n_hidden /2), activation='relu')(latent_inputs)
         x = keras.layers.BatchNormalization()(x)
-        outputs = Dense(input_shape[0], activation='sigmoid')(x)
+        y = Dense(self.n_hidden, activation='relu')(x)
+        y = keras.layers.BatchNormalization()(y)
+        outputs = Dense(input_shape[0], activation='sigmoid')(y)
         # instantiate decoder model
         decoder = Model(latent_inputs, outputs, name='decoder')
         if self.print_model:

@@ -5,6 +5,7 @@ import vamb
 from keras.datasets import mnist
 import matplotlib.pyplot as plt
 import numpy as np
+import sklearn as sk
 from vamb.__main__ import calc_tnf, calc_rpkm
 from vamb.vambtools import numpy_inplace_maskarray, write_npz
 from VAE_ORG import VAE_ORG
@@ -250,23 +251,33 @@ def run_deep_clustering():
     n_hidden = 64
     destroy = False
     x = get_input(batch_size, destroy, save_dir)
+    # tnf, rpkm = get_input(batch_size, destroy, save_dir)
+    # x = sk.preprocessing.minmax_scale(tnf, feature_range=(0, 1), axis=1, copy=True)
+    # x1 = sk.preprocessing.minmax_scale(rpkm, feature_range=(0, 1), axis=0, copy=True)
 
+    # inputs = []
+    # for idx, x in enumerate(x):
+    #     tmp = np.append(x1[idx], x)
+    #     inputs.append(tmp)
+    # inputs = np.array(inputs)
+
+    # input_shape = (104,)
     # vae = VAE1(batch_size=batch_size, n_epoch=n_epoch,
     #            n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
       #optimizer = 'adam'
       #vae.vae.compile(optimizer=optimizer)
 
     dvmb = DVMB(n_hidden=n_hidden, batch_size=256, n_epoch=300, n_clusters=60, save_dir=save_dir)
-    #dvmb.init_vae(x=x, vae_weights=None)
+    dvmb.init_vae(x=x, vae_weights=None)
     #dvmb.model.add_loss(dvmb.vae.final_loss(dvmb.vae.encoder_input, dvmb.vae.outputs))
-    #dvmb.compile()
+    dvmb.compile()
     # pre-training
     # dvmb.init_vae(x=x)
     # use pre-trained weights
     
     # real training
-    #dvmb.fit(x=x, batch_size=batch_size)
-    dvmb.load_weights(weights_path=f'{save_dir}/cp/dcec_model_1050.h5')
+    dvmb.fit(x=x, batch_size=batch_size)
+    dvmb.load_weights(weights_path=f'{save_dir}/dcec_model_final.h5')
     # predict
     clusters = dvmb.predict(x=x, batch_size=batch_size)
 
