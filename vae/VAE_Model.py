@@ -18,7 +18,9 @@ class VAE_Model(Model):
 
         self.encoder_input, self.encoder, self.z_mean, self.z_log_var = self.create_encoder(input_shape)
         self.decoder = self.decoder_model(input_shape)
-        self.decoder_outputs = self.decoder(self.encoder(self.encoder_input)[2])
+        self_encoder_outputs = self.encoder(self.encoder_input)
+        mean_output = self_encoder_outputs[2]
+        self.decoder_outputs = self.decoder(mean_output)
 
         self.total_loss_tracker = Mean(name="total_loss")
         self.reconstruction_loss_tracker = Mean(name="reconstruction_loss")
@@ -34,24 +36,7 @@ class VAE_Model(Model):
 
     def train_step(self, data):
         with tf.GradientTape() as tape:
-            z_mean, z_log_var, z = self.encoder(data)
-            reconstruction = self.decoder(z)
-
-            # reconstruction_loss = keras.losses.mse(data, reconstruction)
-            # reconstruction_loss = tf.reduce_sum(reconstruction_loss)
-            # reconstruction_loss = tf.reduce_mean(reconstruction_loss)
-            # kl_loss = -0.5 * (1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var))
-            # kl_loss = tf.reduce_mean(tf.reduce_sum(kl_loss, axis=1))
-            # total_loss = K.mean(reconstruction_loss + kl_loss)
-
-            reconstruction_loss = mse(data, reconstruction)
-            reconstruction_loss = tf.reduce_sum(reconstruction_loss)
-            reconstruction_loss = tf.reduce_mean(reconstruction_loss)
-            reconstruction_loss *= self.inputs_shape
-            kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
-            kl_loss = K.sum(kl_loss, axis=-1)
-            kl_loss *= -0.5
-            total_loss = K.mean(reconstruction_loss + kl_loss)
+            kl_loss, reconstruction_loss, total_loss = self.calculate_vae_loss(data)
 
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
@@ -64,6 +49,19 @@ class VAE_Model(Model):
             "kl_loss": self.kl_loss_tracker.result(),
         }
         return losses
+
+    def calculate_vae_loss(self, data):
+        z_mean, z_log_var, z = self.encoder(data)
+        reconstruction = self.decoder(z)
+        reconstruction_loss = mse(data, reconstruction)
+        reconstruction_loss = tf.reduce_sum(reconstruction_loss)
+        reconstruction_loss = tf.reduce_mean(reconstruction_loss)
+        reconstruction_loss *= self.inputs_shape
+        kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
+        kl_loss = K.sum(kl_loss, axis=-1)
+        kl_loss *= -0.5
+        total_loss = K.mean(reconstruction_loss + kl_loss)
+        return kl_loss, reconstruction_loss, total_loss
 
     def create_encoder(self, input_shape) -> (Input, Model, Dense, Dense):
         inputs = Input(shape=input_shape, name='encoder_input')

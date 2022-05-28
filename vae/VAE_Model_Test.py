@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 import numpy as np
+import sklearn.preprocessing
 from keras.datasets import mnist
 from keras.optimizer_v2.adam import Adam
 
@@ -33,6 +34,7 @@ def pretrain_vae_model_mnist():
 
     vae: VAE_Model = VAE_Model(input_shape=input_shape, n_hidden=n_hidden, save_dir=save_dir)
     vae.compile(optimizer='adam')
+    print(f'x_max={np.max(x_train)}, x_min={np.min(x_train)}')
     vae.fit(x_train, epochs=n_epoch, batch_size=batch_size)
     vae.save_weights(f'{save_dir}/vae_model_final.h5')
     # vae.built = True
@@ -79,23 +81,27 @@ def pretrain_vae_model_mnist():
 
 def pretrain_vae_model():
     save_dir = 'results/vae_model-cami'
-    batch_size, n_epoch = 37, 50
+    batch_size, n_epoch = 256, 300
     n_hidden = 64
     destroy = False
-    x = get_input(batch_size, destroy, save_dir)
+    tnf, rpkm = get_input(batch_size, destroy, save_dir)
+    x = sklearn.preprocessing.minmax_scale(tnf, feature_range=(0, 1), axis=1, copy=True)
+    x1 = sklearn.preprocessing.minmax_scale(rpkm, feature_range=(0, 1), axis=0, copy=True)
+
+    print(f'x_max={np.max(x)}, x_min={np.min(x)}')
+    print(f'x1_max={np.max(x1)}, x1_min={np.min(x1)}')
+
+    inputs = []
+    for idx, x in enumerate(x):
+        tmp = np.append(x1[idx], x)
+        inputs.append(tmp)
+    inputs = np.array(inputs)
+
     input_shape = (104,)
 
-    # (x_train, y_train), (x_test, y_test) = mnist.load_data()
-    # image_size = x_train.shape[1]
-    # original_dim = image_size * image_size
-    # x_train = np.reshape(x_train, [-1, original_dim])
-    # x_test = np.reshape(x_test, [-1, original_dim])
-    # x_train = x_train.astype('float32') / 255
-    # x_test = x_test.astype('float32') / 255
-
     vae: VAE_Model = VAE_Model(input_shape=input_shape, n_hidden=n_hidden, save_dir=save_dir)
-    vae.compile(optimizer=Adam(learning_rate=0.05))
-    vae.fit(x, epochs=n_epoch, batch_size=batch_size)
+    vae.compile(optimizer='Adam')
+    vae.fit(inputs, epochs=n_epoch, batch_size=batch_size)
 
 
 if __name__ == "__main__":
