@@ -174,6 +174,7 @@ class DVMB(object):
         kmeans = KMeans(n_clusters=self.n_clusters, n_init=20)
         latent_space = self.vae.encoder.predict(x=x)
         z = latent_space
+        self.z = z
         self.y_pred = kmeans.fit_predict(z)
         y_pred_last = np.copy(self.y_pred)
 
