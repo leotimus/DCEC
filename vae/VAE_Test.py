@@ -213,8 +213,8 @@ def get_input(batch_size, destroy, save_dir):
 
 
 def run_deep_clustering():
-    save_dir = 'results/vae_dense2_2'
-    batch_size, n_epoch = 100, 100
+    save_dir = 'results/dvmb0'
+    batch_size, n_epoch = 100, 500
     n_hidden = 64
     destroy = False
     x = get_input(batch_size, destroy, save_dir)
@@ -230,42 +230,23 @@ def run_deep_clustering():
     # pre-training
     # dvmb.init_vae(x=x)
     # use pre-trained weights
-    dvmb.init_vae(x=x)
+    dvmb.init_vae(x=x, vae_weights=f'{save_dir}/pretrain_vae_model.h5')
     # real training
     dvmb.fit(x=x, batch_size=batch_size)
-
     #dvmb.load_weights(weights_path=f'{save_dir}/dcec_model_final.h5')
     # predict
     clusters = dvmb.predict(x=x, batch_size=batch_size)
+
+    # save to bins
     fasta = '/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta'
     fastaDict = readContigs(fasta, onlySequence=False)
     binsDict = mapBinAndContigNames(fastaDict, clusters)
     Path(f'{save_dir}/bins').mkdir(exist_ok=True)
     writeBins(f'{save_dir}/bins', bins=binsDict, fastadict=fastaDict)
-    clusters = clusters.reshape(1,-1)
-    X_embedded = TSNE(n_components=1, learning_rate='auto', init='random').fit_transform(clusters)
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-
-    df = pd.DataFrame()
-    df["x"] = X_embedded[:, 0]
-    df["y"] = X_embedded[:, 1]
-    df["z"] = X_embedded[:, 2]
-    #
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
-    ax.set_zlabel("z")
-    #
-    ax.scatter(df["x"], df["y"], df["z"], alpha=0.1)
-    #
-    plt.show()
-    sns.scatterplot(data=df, x="x", y="y", alpha=0.1, hue=binsDict, palette="deep", legend=False)
-    plt.show()
-
-    # save to bins
     print(f'predict size: ', len(clusters))
 
-def testy():
+
+def run_tsne():
     save_dir = 'results/vae_dense2_2'
     batch_size, n_epoch = 100, 100
     n_hidden = 64
@@ -313,71 +294,8 @@ def testy():
     plt.show()
     plt.savefig("tsne2")
 
-def tsnefy():
-    #save_dir = 'results/vae_dense2_2'
-    #batch_size, n_epoch = 100, 100
-    #n_hidden = 64
-   # vae = VAE(batch_size=batch_size, n_epoch=n_epoch,
-              # n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
-
-    # not in dcec version
-    # self.vae.model.compile(optimizer='adam')
-
-    #latent = vae.encoder(vae.encoder_input)
-    save_dir = 'results/vae_dense2_2'
-    batch_size, n_epoch = 100, 100
-    n_hidden = 64
-    destroy = False
-    x = get_input(batch_size, destroy, save_dir)
-
-    # vae = VAE1(batch_size=batch_size, n_epoch=n_epoch,
-    #            n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
-    # optimizer = 'adam'
-    # vae.vae.compile(optimizer=optimizer)
-
-    dvmb = DVMB(n_hidden=n_hidden, batch_size=batch_size, n_epoch=n_epoch, n_clusters=60, save_dir=save_dir)
-    dvmb.compile()
-
-    # pre-training
-    # dvmb.init_vae(x=x)
-    # use pre-trained weights
-    dvmb.init_vae(x=x)
-    # real training
-    dvmb.fit(x=x, batch_size=batch_size)
-    clusters = dvmb.predict(x=x, batch_size=batch_size)
-    print(dvmb.vae)
-    # dvmb.load_weights(weights_path=f'{save_dir}/dcec_model_final.h5')
-    # predict
-    latent = dvmb.vae.encoder(dvmb.vae.encoder_input)
-    print(latent)
-    #clusters = dvmb.predict(x=x, batch_size=batch_size)
-
-    fasta = '/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta'
-    fastaDict = readContigs(fasta, onlySequence=False)
-    binsDict = mapBinAndContigNames(fastaDict, clusters)
-    Path(f'{save_dir}/bins').mkdir(exist_ok=True)
-    writeBins(f'{save_dir}/bins', bins=binsDict, fastadict=fastaDict)
-    #clusters = clusters.reshape(1, -1)
-    X_embedded = TSNE(n_components=2, learning_rate='auto', init='random').fit_transform(latent)
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-
-    df = pd.DataFrame()
-    df["x"] = X_embedded[:, 0]
-    df["y"] = X_embedded[:, 1]
-    df["z"] = X_embedded[:, 2]
-    #
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
-    ax.set_zlabel("z")
-    #
-    ax.scatter(df["x"], df["y"], df["z"], alpha=0.1)
-    #
-    plt.show()
-    sns.scatterplot(data=df, x="x", y="y", alpha=0.1, hue=clusters, palette="deep", legend=False)
-    plt.show()
 if __name__ == "__main__":
     # run_vae_tnf_bam()
     #run_deep_clustering()
     # run_vae_mnist()
-    testy()
+    run_tsne()
