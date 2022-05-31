@@ -8,7 +8,7 @@ import numpy as np
 from vamb.__main__ import calc_tnf, calc_rpkm
 from vamb.vambtools import numpy_inplace_maskarray, write_npz
 
-from ..DVMB import DVMB
+from DVMB import DVMB
 from reader.SequenceReader import readContigs
 from vae.VAE import VAE
 from writer.BinWriter import mapBinAndContigNames, writeBins

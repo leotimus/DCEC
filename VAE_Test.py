@@ -129,14 +129,16 @@ def run_vae_tnf_bam():
     inputs = get_input(batch_size, destroy, save_dir)
     # TODO improve
     vae = VAE(batch_size=batch_size, n_epoch=n_epoch,
-              n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
+              n_hidden=n_hidden, input_shape=(109,), print_model=True, save_dir=save_dir)
     vae.model.fit(x=inputs, epochs=n_epoch, batch_size=batch_size)
 
 
 def get_input(batch_size, destroy, save_dir):
     Path(save_dir).mkdir(parents=True, exist_ok=True)
-    bams_path = ['/mnt/c/Python/Datasets/RL_S001.bam']
-    fasta_path = '/mnt/c/Python/Datasets/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta'
+    bams_path = ['/share_data/runs/leo/metabat2/az-af/bams/E1.bam', '/share_data/runs/leo/metabat2/az-af/bams/E2.bam',
+                 '/share_data/runs/leo/metabat2/az-af/bams/E3.bam', '/share_data/runs/leo/metabat2/az-af/bams/P1.bam',
+                 '/share_data/runs/leo/metabat2/az-af/bams/P2.bam', '/share_data/runs/leo/metabat2/az-af/bams/P3.bam']
+    fasta_path = '/share_data/runs/leo/metabat2/az-af/scaffolds.fasta'
 
     tnf_path = f'{save_dir}/tnf.npz'
     if not Path(tnf_path).exists():
@@ -199,9 +201,16 @@ def get_input(batch_size, destroy, save_dir):
         zscore(tnf, axis=0, inplace=True)
         """
     # TODO improve
+    list_rpkm = list(rpkm)
     inputs = []
+
+    # for ix in range(6):
+    #     for idx, x in enumerate(tnf):
+    #         tmp = np.append(list_rpkm[idx][ix], x)
+    #         inputs.append(tmp)
+    #         inputs = np.array(inputs)
     for idx, x in enumerate(tnf):
-        tmp = np.append(rpkm[idx], x)
+        tmp = np.append(list_rpkm[idx], x)
         inputs.append(tmp)
     inputs = np.array(inputs)
     return inputs
@@ -234,7 +243,7 @@ def run_vae():
     destroy = False
     #x = get_input(batch_size, destroy, save_dir)
     x = load_mnist()
-    vae = VAE(batch_size=batch_size, n_epoch=n_epoch, n_hidden=n_hidden, input_shape=(104, ), print_model=True, save_dir=save_dir, loss_func=None)
+    vae = VAE(batch_size=batch_size, n_epoch=n_epoch, n_hidden=n_hidden, input_shape=(109, ), print_model=True, save_dir=save_dir, loss_func=None)
 
     vae.model.add_loss(vae.final_loss(vae.encoder_input, vae.outputs))
     vae.model.add_loss(vae.calculate_kl_loss2())
@@ -243,14 +252,15 @@ def run_vae():
 
     #vae.model.compile(optimizer='adam', loss=vae.vae_loss())
     vae.model.compile(optimizer='adam')
-    vae.model.fit(x=x, y=x, batch_size=batch_size, epochs=100)
+    vae.model.fit(x=x, y=x, batch_size=batch_size, epochs=1)
 
 def run_deep_clustering():
-    save_dir = 'results/dvmb0'
+    save_dir = 'results/azolla_18_clusters'
     batch_size, n_epoch = 256, 100
     n_hidden = 64
     destroy = False
     x = get_input(batch_size, destroy, save_dir)
+    print("Get")
     # tnf, rpkm = get_input(batch_size, destroy, save_dir)
     # x = sk.preprocessing.minmax_scale(tnf, feature_range=(0, 1), axis=1, copy=True)
     # x1 = sk.preprocessing.minmax_scale(rpkm, feature_range=(0, 1), axis=0, copy=True)
@@ -267,7 +277,7 @@ def run_deep_clustering():
       #optimizer = 'adam'
       #vae.vae.compile(optimizer=optimizer)
 
-    dvmb = DVMB(n_hidden=n_hidden, batch_size=256, n_epoch=300, n_clusters=60, save_dir=save_dir)
+    dvmb = DVMB(n_hidden=n_hidden, batch_size=256, n_epoch=300, n_clusters=18, save_dir=save_dir)
     dvmb.init_vae(x=x, vae_weights=None)
     #dvmb.model.add_loss(dvmb.vae.final_loss(dvmb.vae.encoder_input, dvmb.vae.outputs))
     dvmb.compile()
@@ -282,7 +292,7 @@ def run_deep_clustering():
     clusters = dvmb.predict(x=x, batch_size=batch_size)
 
     # save to bins
-    fasta = f'{save_dir}/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta'
+    fasta = '/share_data/runs/leo/metabat2/az-af/scaffolds.fasta'
     fastaDict = readContigs(fasta, onlySequence=False)
     binsDict = mapBinAndContigNames(fastaDict, clusters)
     Path(f'{save_dir}/bins').mkdir(exist_ok=True)

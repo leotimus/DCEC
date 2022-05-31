@@ -72,7 +72,7 @@ class ClusteringLayer(keras.layers.Layer):
 
 
 class DVMB(object):
-    def __init__(self, n_hidden=64, batch_size=256, n_epoch=100, n_clusters=60, save_dir='results/vae2'):
+    def __init__(self, n_hidden=64, batch_size=256, n_epoch=100, n_clusters=18, save_dir='results/vae2'):
 
         super(DVMB, self).__init__()
         self.save_dir = save_dir
@@ -86,13 +86,13 @@ class DVMB(object):
       
 
         self.vae = VAE(batch_size=batch_size, n_epoch=n_epoch,
-                  n_hidden=n_hidden, input_shape=(104, ), print_model=True, save_dir=save_dir)
+                  n_hidden=n_hidden, input_shape=(109, ), print_model=True, save_dir=save_dir)
 
         #not in dcec version
         #self.vae.model.compile(optimizer='adam')
 
         encoder_latent_space_layer = self.vae.encoder(self.vae.encoder_input)
-        self.clustering_layer = ClusteringLayer(60, name='clustering')(encoder_latent_space_layer)
+        self.clustering_layer = ClusteringLayer(18, name='clustering')(encoder_latent_space_layer)
 
       
 
@@ -110,7 +110,7 @@ class DVMB(object):
     #     return recon + kl
 
 
-    def pretrain(self, x, batch_size=256, epochs=100, optimizer='adam'):
+    def pretrain(self, x, batch_size=256, epochs=1, optimizer='adam'):
         print('...Pretraining...')
          #self.vae.model.add_loss(self.vae.final_loss(self.vae.encoder_input, self.vae.outputs))
         self.vae.model.compile(optimizer=optimizer, loss='mse')
@@ -166,7 +166,8 @@ class DVMB(object):
     def compile(self, loss=['kld', 'mse'], loss_weights=[0.1, 1], optimizer='adam'):
         self.model.compile(loss=loss, loss_weights=loss_weights, optimizer=optimizer)
     
-    def fit(self, x, y=None, batch_size=256, maxiter=20000, tol=1e-2, update_interval=150):
+    def fit(self, x, y=None, batch_size=256, maxiter=1, tol=1e-2, update_interval=150
+            ):
         t0 = time()
         # Step 2: initialize cluster centers using k-means
         t1 = time()
