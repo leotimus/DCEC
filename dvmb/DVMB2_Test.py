@@ -14,7 +14,7 @@ def run_deep_clustering():
     batch_size, n_epoch = 256, 300
     n_hidden = 64
     destroy = False
-    n_clusters = 60
+    n_clusters = 37
 
     tnf, rpkm = get_input(batch_size, destroy, save_dir)
     x = sklearn.preprocessing.minmax_scale(tnf, feature_range=(0, 1), axis=1, copy=True)

@@ -219,12 +219,12 @@ def get_input(batch_size, destroy, save_dir):
         zscore(tnf, axis=0, inplace=True)
         """
     # TODO improve
-    inputs = []
-    for idx, x in enumerate(tnf):
-        tmp = np.append(rpkm[idx], x)
-        inputs.append(tmp)
-    inputs = np.array(inputs)
-    return inputs
+    # inputs = []
+    # for idx, x in enumerate(tnf):
+    #     tmp = np.append(rpkm[idx], x)
+    #     inputs.append(tmp)
+    # inputs = np.array(inputs)
+    return tnf, rpkm
 
 
 def custom_vae_loss(mean: Dense, variant: Dense, decoder: Model):

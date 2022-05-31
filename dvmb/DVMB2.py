@@ -144,14 +144,14 @@ class DVMB2(object):
         self.model.compile(loss=[self.custom_kld_loss(), self.custom_vae_loss(self.vae)], loss_weights=[0.1, 1],
                            optimizer='Adam')
 
-    def fit(self, x, y=None, batch_size=256, maxiter=2e4, tol=1e-3, update_interval=140):
+    def fit(self, x, y=None, batch_size=256, maxiter=2e4, tol=1e-3, update_interval=100):
         t0 = time()
         # Step 2: initialize cluster centers using k-means
         t1 = time()
         print(f'Initializing cluster centers with k-means {self.n_clusters}.')
         kmeans = KMeans(n_clusters=self.n_clusters, n_init=20)
         latent_space = self.vae.encoder.predict(x=x)
-        z = latent_space[2]
+        z = latent_space[0]
         self.y_pred = kmeans.fit_predict(z)
         y_pred_last = np.copy(self.y_pred)
 
@@ -167,12 +167,9 @@ class DVMB2(object):
         logwriter.writeheader()
 
         save_interval = x.shape[0] / batch_size * 5
-        update_interval = 10
         print(f'MaxIter: {maxiter}, Save interval: {save_interval}, Update interval: {update_interval}.')
 
         loss = [0, 0, 0]
-        index = 0
-        size = len(x)
         for ite in range(int(maxiter)):
             if ite % update_interval == 0:
                 q, tmp = self.model.predict(x=x, batch_size=self.batch_size, verbose=0)
