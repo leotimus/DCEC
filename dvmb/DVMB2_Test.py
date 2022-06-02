@@ -1,3 +1,7 @@
+import contextlib
+import os
+import shutil
+import subprocess
 from pathlib import Path
 
 import numpy as np
@@ -9,41 +13,44 @@ from vae.VAE_Test import get_input
 from writer.BinWriter import mapBinAndContigNames, writeBins
 
 
-def run_deep_clustering():
-    save_dir = 'results/dvmb_model2'
-    batch_size, n_epoch = 256, 300
-    n_hidden = 64
+def run_deep_clustering(save_dir='results/dvmb_model2',
+                        n_clusters=60,
+                        batch_size=256,
+                        n_epoch=300,
+                        n_hidden=64, use_batch_norm=False, input_shape=(104, 0), vae_optimizer='Adam', optimizer='Adam',
+                        loss_weights=[0.1, 1], update_interval=100, max_iter=2e3):
+    shutil.rmtree(f'{save_dir}/bins', ignore_errors=True, onerror=None)
     destroy = False
-    n_clusters = 37
 
-    tnf, rpkm = get_input(batch_size, destroy, save_dir)
-    x = sklearn.preprocessing.minmax_scale(tnf, feature_range=(0, 1), axis=1, copy=True)
-    x1 = sklearn.preprocessing.minmax_scale(rpkm, feature_range=(0, 1), axis=0, copy=True)
+    tnf, rpkm = get_input(batch_size, destroy, save_dir='/share_data/cami_low/npzs')
+    tnf = sklearn.preprocessing.minmax_scale(tnf, feature_range=(0, 1), axis=1, copy=True)
+    rpkm = sklearn.preprocessing.minmax_scale(rpkm, feature_range=(0, 1), axis=0, copy=True)
 
-    print(f'x_max={np.max(x)}, x_min={np.min(x)}')
-    print(f'x1_max={np.max(x1)}, x1_min={np.min(x1)}')
+    print(f'x_max={np.max(tnf)}, x_min={np.min(tnf)}')
+    print(f'x1_max={np.max(rpkm)}, x1_min={np.min(rpkm)}')
 
     inputs = []
-    for idx, x in enumerate(x):
-        tmp = np.append(x1[idx], x)
+    for idx, tnf in enumerate(tnf):
+        tmp = np.append(rpkm[idx], tnf)
         inputs.append(tmp)
-    x = np.array(inputs)
+    tnf = np.array(inputs)
 
+    # dvmb: DVMB2 = DVMB2(n_hidden=n_hidden, batch_size=batch_size, n_epoch=n_epoch, n_clusters=n_clusters,
+    #                               save_dir=save_dir)
     dvmb: DVMB2 = DVMB2(n_hidden=n_hidden, batch_size=batch_size, n_epoch=n_epoch, n_clusters=n_clusters,
-                                  save_dir=save_dir)
+                        save_dir=save_dir, use_batch_norm=use_batch_norm, input_shape=input_shape,
+                        vae_optimizer=vae_optimizer, optimizer=optimizer, loss_weights=loss_weights,
+                        update_interval=update_interval, max_iter=max_iter)
     dvmb.compile()
 
     # pre-training
-    dvmb.init_vae(x=x)
-    # use pre-trained weights
-    # dvmb.init_vae(x=x, vae_weights=f'{save_dir}/pretrain_vae_model.h5')
+    dvmb.init_vae(x=tnf)
     # real training
-    dvmb.fit(x=x, batch_size=batch_size, maxiter=1000)
-    # dvmb.load_weights(weights_path=f'{save_dir}/dcec_model_final.h5')
+    dvmb.fit(x=tnf)
 
     # predict
     print(f'DVMB loss labels {dvmb.model.metrics_names}')
-    clusters = dvmb.predict(x=x)
+    clusters = dvmb.predict(x=tnf)
 
     # save to bins
     fasta = '/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta'
@@ -55,4 +62,43 @@ def run_deep_clustering():
 
 
 if __name__ == "__main__":
-    run_deep_clustering()
+    root = '/share_data/reports/dvmb/runs'
+    case = 'default'
+
+    n_clusters = 37
+    batch_size = 256
+    n_epoch = 300
+    n_hidden = 64
+    use_batch_norm = False
+    input_shape = (104,)
+    vae_optimizer = 'Adam'
+    optimizer = 'Adam'
+    loss_weights = [0.1, 1]
+    update_interval = 100
+    max_iter = 2e3
+
+    lws=[[0.005, 1], [0.01, 1], [0.05, 1], [0.1, 1], [0.1, 0.1], [0.1, 0.5]]
+
+    for loss_weights in lws:
+        lwss = f'lw{loss_weights[0]}{loss_weights[1]}'
+        save_dir = f'{root}/{case}/n{n_clusters}-b{batch_size}-e{n_epoch}-h{n_hidden}-vo{vae_optimizer}-o{optimizer}-ui{update_interval}-mi{max_iter}-lw{lwss}'
+        print(f'save to {save_dir}')
+        Path(save_dir).mkdir(parents=True, exist_ok=True)
+
+        file_path = f'{save_dir}/run.log'
+        with open(file_path, "w") as o:
+            with contextlib.redirect_stdout(o):
+                run_deep_clustering(save_dir=save_dir,
+                                    n_clusters=n_clusters,
+                                    batch_size=batch_size,
+                                    n_epoch=n_epoch,
+                                    n_hidden=n_hidden,
+                                    use_batch_norm=False,
+                                    input_shape=input_shape,
+                                    vae_optimizer=vae_optimizer,
+                                    optimizer=optimizer,
+                                    loss_weights=loss_weights,
+                                    update_interval=update_interval,
+                                    max_iter=max_iter)
+
+        subprocess.run(['/home/ltms/Projects/DCEC/amber_runner.sh', save_dir])

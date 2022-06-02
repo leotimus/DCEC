@@ -9,12 +9,13 @@ from tensorflow import keras
 
 
 class VAE_Model(Model):
-    def __init__(self, input_shape=None, n_hidden=128, save_dir='results/tmp', **kwargs):
+    def __init__(self, input_shape=None, n_hidden=128, save_dir='results/tmp', use_batch_norm=False, **kwargs):
         super(VAE_Model, self).__init__(**kwargs)
         self.n_hidden = n_hidden
         self.print_model = True
         self.save_dir = save_dir
         self.inputs_shape = input_shape
+        self.use_batch_norm = use_batch_norm
 
         self.encoder_input, self.encoder, self.z_mean, self.z_log_var = self.create_encoder(input_shape)
         self.decoder = self.decoder_model(input_shape)
@@ -66,7 +67,8 @@ class VAE_Model(Model):
     def create_encoder(self, input_shape) -> (Input, Model, Dense, Dense):
         inputs = Input(shape=input_shape, name='encoder_input')
         x = Dense(self.n_hidden, activation='relu')(inputs)
-        # x = BatchNormalization()(x)
+        if self.use_batch_norm:
+            x = BatchNormalization()(x)
         z_mean = Dense(self.n_hidden / 2, name="z_mean")(x)
         # z_mean = BatchNormalization()(z_mean)
         z_variant = Dense(self.n_hidden / 2, name="z_log_var")(x)
@@ -82,7 +84,8 @@ class VAE_Model(Model):
     def decoder_model(self, input_shape) -> Model:
         latent_inputs = Input(shape=(int(self.n_hidden / 2),), name='z_sampling')
         x = Dense(self.n_hidden, activation='relu')(latent_inputs)
-        # x = BatchNormalization()(x)
+        if self.use_batch_norm:
+            x = BatchNormalization()(x)
         outputs = Dense(input_shape[0], activation='sigmoid')(x)
         # instantiate decoder model
         decoder = Model(latent_inputs, outputs, name='decoder')

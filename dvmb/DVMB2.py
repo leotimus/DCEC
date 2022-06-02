@@ -72,18 +72,26 @@ class ClusteringLayer(keras.layers.Layer):
 
 
 class DVMB2(object):
-    def __init__(self, n_hidden=64, batch_size=256, n_epoch=500, n_clusters=10, save_dir='results/vae2'):
+    def __init__(self, n_hidden=64, batch_size=256, n_epoch=500, n_clusters=10, save_dir='results/vae2',
+                 use_batch_norm=False, input_shape=(104,), vae_optimizer='Adam', optimizer='Adam',
+                 loss_weights=[0.1, 1], update_interval=100, max_iter=2e3):
 
         super(DVMB2, self).__init__()
+        self.tol = 0.01
+        self.update_interval = update_interval
+        self.max_iter = max_iter
         self.save_dir = save_dir
         self.n_clusters = n_clusters
         self.pretrained = False
         self.batch_size = batch_size
         self.n_epoch = n_epoch
         self.y_pred = []
+        self.use_batch_norm = use_batch_norm
+        self.optimizer = optimizer
+        self.loss_weights = loss_weights
 
-        self.vae = VAE_Model(n_hidden=n_hidden, input_shape=(104,), save_dir=save_dir)
-        self.vae.compile(optimizer='Adam')
+        self.vae = VAE_Model(n_hidden=n_hidden, input_shape=input_shape, save_dir=save_dir, use_batch_norm=use_batch_norm)
+        self.vae.compile(optimizer=vae_optimizer)
 
         sampling_layer = self.vae.encoder(self.vae.encoder_input)
         encoder_latent_space_layer = sampling_layer[0]
@@ -96,18 +104,11 @@ class DVMB2(object):
         self.model.summary()
         keras.utils.plot_model(self.model, to_file=f'{save_dir}/dvmb.png', show_shapes=True)
 
-    def pretrain(self, x, batch_size=256, epochs=500):
+    def pretrain(self, x):
         print('...Pretraining...')
-        from keras.callbacks import CSVLogger
-        csv_logger = CSVLogger(f'{self.save_dir}/pretrain_log.csv')
-
-        # begin training
         t0 = time()
-        self.vae.fit(x=x, batch_size=batch_size, epochs=epochs, callbacks=[csv_logger])
+        self.vae.fit(x=x, batch_size=self.batch_size, epochs=self.n_epoch)
         print('Pretraining time: ', time() - t0)
-        # self.vae.model.save(f'{self.save_dir}/pretrain_vae_model.h5')
-        # print(f'Pretrained weights are saved to {self.save_dir}/pretrain_vae_model.h5, reload weights')
-        # self.vae.model.load_weights(f'{self.save_dir}/pretrain_vae_model.h5')
         self.pretrained = True
 
     def load_weights(self, weights_path):
@@ -141,10 +142,10 @@ class DVMB2(object):
         return loss
 
     def compile(self):
-        self.model.compile(loss=[self.custom_kld_loss(), self.custom_vae_loss(self.vae)], loss_weights=[0.1, 1],
-                           optimizer='Adam')
+        self.model.compile(loss=[self.custom_kld_loss(), self.custom_vae_loss(self.vae)], loss_weights=self.loss_weights,
+                           optimizer=self.optimizer)
 
-    def fit(self, x, y=None, batch_size=256, maxiter=2e4, tol=1e-3, update_interval=100):
+    def fit(self, x):
         t0 = time()
         # Step 2: initialize cluster centers using k-means
         t1 = time()
@@ -158,86 +159,51 @@ class DVMB2(object):
         self.model.get_layer("clustering").set_weights([kmeans.cluster_centers_])
 
         # Step 3: deep clustering
-        # logging file
-        import csv, os
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
-        logfile = open(f'{self.save_dir}/dcec_log.csv', 'w')
-        logwriter = csv.DictWriter(logfile, fieldnames=['iter', 'acc', 'nmi', 'ari', 'L', 'Lc', 'Lr'])
-        logwriter.writeheader()
+        save_interval = x.shape[0] / self.batch_size * 5
+        print(f'MaxIter: {self.max_iter}, Save interval: {save_interval}, Update interval: {self.update_interval}.')
 
-        save_interval = x.shape[0] / batch_size * 5
-        print(f'MaxIter: {maxiter}, Save interval: {save_interval}, Update interval: {update_interval}.')
-
-        loss = [0, 0, 0]
-        for ite in range(int(maxiter)):
-            if ite % update_interval == 0:
+        index = 0
+        ds_size = len(x)
+        for ite in range(int(self.max_iter)):
+            if ite % self.update_interval == 0:
                 q, tmp = self.model.predict(x=x, batch_size=self.batch_size, verbose=0)
                 del tmp
-                p = self.target_distribution(q)  # update the auxiliary target distribution p
 
-                # evaluate the clustering performance
-                self.y_pred = q.argmax(1)
-                if y is not None:
-                    acc = np.round(metrics.acc(y, self.y_pred), 5)
-                    nmi = np.round(metrics.nmi(y, self.y_pred), 5)
-                    ari = np.round(metrics.ari(y, self.y_pred), 5)
-                    loss = np.round(loss, 5)
-                    logdict = dict(iter=ite, acc=acc, nmi=nmi, ari=ari, L=loss[0], Lc=loss[1], Lr=loss[2])
-                    logwriter.writerow(logdict)
-                    print('Iter', ite, ': Acc', acc, ', nmi', nmi, ', ari', ari, '; loss=', loss)
+                # update the auxiliary target distribution p
+                p = self.target_distribution(q)
 
                 # check stop criterion
+                self.y_pred = q.argmax(1)
                 delta_label = np.sum(self.y_pred != y_pred_last).astype(np.float32) / self.y_pred.shape[0]
                 y_pred_last = np.copy(self.y_pred)
-                if ite > 0 and delta_label < tol:
-                    print('delta_label ', delta_label, '< tol ', tol)
+                if ite > 0 and delta_label < self.tol:
+                    print('delta_label ', delta_label, '< tol ', self.tol)
                     print('Reached tolerance threshold. Stopping training.')
-                    logfile.close()
                     break
 
-            loss = self.model.train_on_batch(x=x, y=[p, x])
             # train on batch
-            # if (index + 1) * batch_size >= size:
-            #     x_ = x[index * batch_size::]
-            #     y_ = p[index * batch_size::]
-            #     loss = self.model.train_on_batch(x=x_, y=[y_, x_])
-            #     index = 0
-            # else:
-            #     x_ = x[index * batch_size:(index + 1) * batch_size]
-            #     y_ = p[index * batch_size:(index + 1) * batch_size]
-            #     loss = self.model.train_on_batch(x=x_, y=[y_, x_])
-            #     index += 1
-            print(f'Observe loss: {loss}')
-            # del x_
-            # del y_
-
-            # save intermediate model
-            # if ite != 0 and ite % save_interval == 0:
-            #     Path(f'{self.save_dir}/cp').mkdir(parents=True, exist_ok=True)
-            #     file = f'{self.save_dir}/cp/dcec_model_{str(ite)}.h5'
-            #     print(f'saving model to: {file} of iteration={ite}')
-            #     self.model.save_weights(file)
-            #     print(f'saved model to: {file} of iteration={ite}.')
+            if (index + 1) * self.batch_size >= ds_size:
+                x_ = x[index * self.batch_size::]
+                y_ = p[index * self.batch_size::]
+                self.model.train_on_batch(x=x_, y=[y_, x_])
+                index = 0
+            else:
+                x_ = x[index * self.batch_size:(index + 1) * self.batch_size]
+                y_ = p[index * self.batch_size:(index + 1) * self.batch_size]
+                self.model.train_on_batch(x=x_, y=[y_, x_])
+                index += 1
+            del x_
+            del y_
 
             ite += 1
 
-        # save the trained model
-        logfile.close()
-        # print(f'saving model to: {self.save_dir}/dcec_model_final.h5')
-        # self.model.save_weights(f'{self.save_dir}/dcec_model_final.h5')
         t2 = time()
         print('Clustering time:', t2 - t1)
         print('Total time:     ', t2 - t0)
 
-    def init_vae(self, vae_weights=None, x=None):
+    def init_vae(self, x):
         t0 = time()
-        if not self.pretrained and vae_weights is None:
-            print(f'pretraining VAE using default hyper-parameters:')
-            print(f'optimizer=\'adam\', epochs={self.n_epoch}')
-            self.pretrain(x, self.batch_size, epochs=self.n_epoch)
-            self.pretrained = True
-        elif vae_weights is not None:
-            self.vae.model.load_weights(vae_weights)
-            print('vae_weights is loaded successfully.')
+        print(f'pretraining VAE using default hyper-parameters:')
+        print(f'optimizer={self.optimizer}, epochs={self.n_epoch}')
+        self.pretrain(x)
         print('Pretrain time:  ', time() - t0)

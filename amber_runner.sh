@@ -4,16 +4,15 @@
 # + amber output dir
 # + label of model
 
-if [ -z "$3" ]
+if [ -z "$2" ]
 then
-  label='DVMB2'
+  label='DVMB'
 else
-  label=$3
+  label=$2
 fi
 echo $label
 source ~/.bash_profile
 conda activate tools
-rm -rf "/share_data/reports/$2"
-mkdir -p "/share_data/reports/$2"
-/share_data/amber/src/utils/convert_fasta_bins_to_biobox_format.py $1/bins/*.fna -o /share_data/reports/$2/$2.tsv
-amber.py -g /share_data/cami_low/gsa_mapping_with_length.binning  /share_data/reports/$2/$2.tsv -l $label -o /share_data/reports/$2
+mkdir -p "$1/amber"
+/share_data/amber/src/utils/convert_fasta_bins_to_biobox_format.py $1/bins/*.fna -o $1/amber.tsv
+amber.py -g /share_data/cami_low/gsa_mapping_with_length.binning  $1/amber.tsv -l $label -o $1/amber
