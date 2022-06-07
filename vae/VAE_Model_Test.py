@@ -6,6 +6,7 @@ import sklearn.preprocessing
 from keras.datasets import mnist
 from keras.optimizer_v2.adam import Adam
 
+from plotting.PlotCallback import PlotCallback
 from vae.VAE_Model import VAE_Model
 from vae.VAE_Test import get_input
 import matplotlib.pyplot as plt
@@ -35,8 +36,12 @@ def pretrain_vae_model_mnist():
     vae: VAE_Model = VAE_Model(input_shape=input_shape, n_hidden=n_hidden, save_dir=save_dir)
     vae.compile(optimizer='adam')
     print(f'x_max={np.max(x_train)}, x_min={np.min(x_train)}')
-    vae.fit(x_train, epochs=n_epoch, batch_size=batch_size)
+    plot_callback = PlotCallback(f'{save_dir}/vae-model-mnist-loss0.png', ['loss', 'reconstruction_loss'])
+    plot1_callback = PlotCallback(f'{save_dir}/vae-model-mnist-loss1.png', ['kl_loss'])
+    vae.fit(x_train, epochs=n_epoch, batch_size=batch_size, callbacks=[plot_callback, plot1_callback])
     vae.save_weights(f'{save_dir}/vae_model_final.h5')
+    plot_callback.plot()
+    plot1_callback.plot()
     # vae.built = True
     # vae.load_weights(f'{save_dir}/vae_model_final.h5')
 
@@ -101,8 +106,12 @@ def pretrain_vae_model():
 
     vae: VAE_Model = VAE_Model(input_shape=input_shape, n_hidden=n_hidden, save_dir=save_dir)
     vae.compile(optimizer='Adam')
-    vae.fit(inputs, epochs=n_epoch, batch_size=batch_size)
 
+    plot_callback = PlotCallback(f'/share_data/reports/dvmb/vae-model-cami-loss0.png', ['loss', 'reconstruction_loss'])
+    plot1_callback = PlotCallback(f'/share_data/reports/dvmb/vae-model-cami-loss1.png', ['kl_loss'])
+    vae.fit(inputs, epochs=n_epoch, batch_size=batch_size, callbacks=[plot_callback, plot1_callback])
+    plot_callback.plot()
+    plot1_callback.plot()
 
 if __name__ == "__main__":
     pretrain_vae_model()
