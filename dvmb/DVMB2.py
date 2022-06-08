@@ -1,11 +1,10 @@
-from pathlib import Path
 from time import time
 import numpy as np
 import keras.backend as K
 from keras.losses import mse, kld
 from tensorflow import keras
 from sklearn.cluster import KMeans
-import metrics
+from plotting.PlotCallback import PlotCallback
 from vae.VAE_Model import VAE_Model
 
 
@@ -25,7 +24,7 @@ class ClusteringLayer(keras.layers.Layer):
     # Input shape
         2D tensor with shape: `(n_samples, n_features)`.
     # Output shape
-        2D tensor with shape: `(n_samples, n_clusters)`.
+        2D tensor with shape: `(n_samples, n_clusters)`.s
     """
 
     def __init__(self, n_clusters, weights=None, alpha=1.0, **kwargs):
@@ -104,10 +103,21 @@ class DVMB2(object):
         self.model.summary()
         keras.utils.plot_model(self.model, to_file=f'{save_dir}/dvmb.png', show_shapes=True)
 
+        self.dvmb_loss = PlotCallback(filename=f'{save_dir}/dvmb_loss_plot.png',
+                                                  loss_metrics=['loss'])
+        self.dvmb_decoderloss = PlotCallback(filename=f'{save_dir}/dvmb_decoderloss_plot.png',
+                                                  loss_metrics=['decoder_loss'])
+        self.dvmb_clusteringloss = PlotCallback(filename=f'{save_dir}/dvmb_clusteringloss_plot.png',
+                                                  loss_metrics=['clustering_loss'])
+
     def pretrain(self, x):
         print('...Pretraining...')
         t0 = time()
-        self.vae.fit(x=x, batch_size=self.batch_size, epochs=self.n_epoch)
+        loss_reLoss_callback = PlotCallback(filename=f'{self.save_dir}/vae_loss_recon_plot.png', loss_metrics=['loss', 'reconstruction_loss'])
+        kld_callback = PlotCallback(filename=f'{self.save_dir}/vae_kld_plot.png', loss_metrics=['kl_loss'])
+        self.vae.fit(x=x, batch_size=self.batch_size, epochs=self.n_epoch, callbacks=[loss_reLoss_callback, kld_callback])
+        loss_reLoss_callback.plot()
+        kld_callback.plot()
         print('Pretraining time: ', time() - t0)
         self.pretrained = True
 
@@ -164,6 +174,7 @@ class DVMB2(object):
 
         index = 0
         ds_size = len(x)
+
         for ite in range(int(self.max_iter)):
             if ite % self.update_interval == 0:
                 q, tmp = self.model.predict(x=x, batch_size=self.batch_size, verbose=0)
@@ -182,24 +193,32 @@ class DVMB2(object):
                     break
 
             # train on batch
+            loss = []
             if (index + 1) * self.batch_size >= ds_size:
                 x_ = x[index * self.batch_size::]
                 y_ = p[index * self.batch_size::]
-                self.model.train_on_batch(x=x_, y=[y_, x_])
+                loss = self.model.train_on_batch(x=x_, y=[y_, x_])
                 index = 0
             else:
                 x_ = x[index * self.batch_size:(index + 1) * self.batch_size]
                 y_ = p[index * self.batch_size:(index + 1) * self.batch_size]
-                self.model.train_on_batch(x=x_, y=[y_, x_])
+                loss = self.model.train_on_batch(x=x_, y=[y_, x_])
                 index += 1
             del x_
             del y_
+
+            self.dvmb_loss.on_epoch_end(ite, logs={'loss': loss[0]})
+            self.dvmb_decoderloss.on_epoch_end(ite, logs={'decoder_loss': loss[2]})
+            self.dvmb_clusteringloss.on_epoch_end(ite, logs={'clustering_loss': loss[1]})
 
             ite += 1
 
         t2 = time()
         print('Clustering time:', t2 - t1)
         print('Total time:     ', t2 - t0)
+        self.dvmb_clusteringloss.plot()
+        self.dvmb_loss.plot()
+        self.dvmb_decoderloss.plot()
 
     def init_vae(self, x):
         t0 = time()

@@ -46,7 +46,11 @@ def run_deep_clustering(save_dir='results/dvmb_model2',
     # pre-training
     dvmb.init_vae(x=tnf)
     # real training
+    # losses = dvmb.vae.calculate_vae_loss(tnf)
+    # print(f'evaluate01={evaluate_1}')
     dvmb.fit(x=tnf)
+    # losses = dvmb.vae.calculate_vae_loss(tnf)
+    # print(f'evaluate02={evaluate_2}')
 
     # predict
     print(f'DVMB loss labels {dvmb.model.metrics_names}')
@@ -62,10 +66,9 @@ def run_deep_clustering(save_dir='results/dvmb_model2',
 
 
 if __name__ == "__main__":
-    root = '/share_data/reports/dvmb/runs'
-    case = 'default'
+    root = '/share_data/reports/dvmb'
 
-    n_clusters = 37
+    n_clusters = 60
     batch_size = 256
     n_epoch = 300
     n_hidden = 64
@@ -77,15 +80,24 @@ if __name__ == "__main__":
     update_interval = 100
     max_iter = 2e3
 
-    lws=[[0.005, 1], [0.01, 1], [0.05, 1], [0.1, 1], [0.1, 0.1], [0.1, 0.5]]
+    # case = 'default_epoch500-1000'
+    # lws=[[0.005, 1], [0.01, 1], [0.05, 1], [0.1, 1], [0.1, 0.1], [0.1, 0.5]]
 
-    for loss_weights in lws:
-        lwss = f'lw{loss_weights[0]}{loss_weights[1]}'
-        save_dir = f'{root}/{case}/n{n_clusters}-b{batch_size}-e{n_epoch}-h{n_hidden}-vo{vae_optimizer}-o{optimizer}-ui{update_interval}-mi{max_iter}-lw{lwss}'
+    # case = 'default_epoch500-1000'
+    # n_epochs = [1,5,10,15,20,25,30,35,40,45,50]
+    # n_epochs = [500,600,700,800,900,1000]
+
+    case = 'default_normal_with_plot'
+    # max_iters = range(1, 5000, 5)
+    max_iters = [1000]
+
+    for max_iter in max_iters:
+        lwss = f'lw{loss_weights[0]}-{loss_weights[1]}'
+        save_dir = f'{root}/{case}/n{n_clusters}-b{batch_size}-e{n_epoch}-h{n_hidden}-vo{vae_optimizer}-o{optimizer}-ui{update_interval}-mi{max_iter}-{lwss}'
         print(f'save to {save_dir}')
         Path(save_dir).mkdir(parents=True, exist_ok=True)
 
-        file_path = f'{save_dir}/run.log'
+        file_path = f'{save_dir}/run.txt'
         with open(file_path, "w") as o:
             with contextlib.redirect_stdout(o):
                 run_deep_clustering(save_dir=save_dir,
