@@ -175,37 +175,43 @@ class DVMB2(object):
         index = 0
         ds_size = len(x)
 
+        q, tmp = self.model.predict(x=x, batch_size=self.batch_size, verbose=0)
+        del tmp
+        p = self.target_distribution(q)
+
         for ite in range(int(self.max_iter)):
-            if ite % self.update_interval == 0:
-                q, tmp = self.model.predict(x=x, batch_size=self.batch_size, verbose=0)
-                del tmp
+            # if ite % self.update_interval == 0:
+            #     q, tmp = self.model.predict(x=x, batch_size=self.batch_size, verbose=0)
+            #     del tmp
+            #
+            #     # update the auxiliary target distribution p
+            #     p = self.target_distribution(q)
+            #
+            #     # check stop criterion
+            #     self.y_pred = q.argmax(1)
+            #     delta_label = np.sum(self.y_pred != y_pred_last).astype(np.float32) / self.y_pred.shape[0]
+            #     y_pred_last = np.copy(self.y_pred)
+            #     if ite > 0 and delta_label < self.tol:
+            #         print('delta_label ', delta_label, '< tol ', self.tol)
+            #         print('Reached tolerance threshold. Stopping training.')
+            #         break
 
-                # update the auxiliary target distribution p
-                p = self.target_distribution(q)
-
-                # check stop criterion
-                self.y_pred = q.argmax(1)
-                delta_label = np.sum(self.y_pred != y_pred_last).astype(np.float32) / self.y_pred.shape[0]
-                y_pred_last = np.copy(self.y_pred)
-                if ite > 0 and delta_label < self.tol:
-                    print('delta_label ', delta_label, '< tol ', self.tol)
-                    print('Reached tolerance threshold. Stopping training.')
-                    break
+            loss = self.model.train_on_batch(x=x, y=[p, x])
 
             # train on batch
-            loss = []
-            if (index + 1) * self.batch_size >= ds_size:
-                x_ = x[index * self.batch_size::]
-                y_ = p[index * self.batch_size::]
-                loss = self.model.train_on_batch(x=x_, y=[y_, x_])
-                index = 0
-            else:
-                x_ = x[index * self.batch_size:(index + 1) * self.batch_size]
-                y_ = p[index * self.batch_size:(index + 1) * self.batch_size]
-                loss = self.model.train_on_batch(x=x_, y=[y_, x_])
-                index += 1
-            del x_
-            del y_
+            # loss = []
+            # if (index + 1) * self.batch_size >= ds_size:
+            #     x_ = x[index * self.batch_size::]
+            #     y_ = p[index * self.batch_size::]
+            #     loss = self.model.train_on_batch(x=x_, y=[y_, x_])
+            #     index = 0
+            # else:
+            #     x_ = x[index * self.batch_size:(index + 1) * self.batch_size]
+            #     y_ = p[index * self.batch_size:(index + 1) * self.batch_size]
+            #     loss = self.model.train_on_batch(x=x_, y=[y_, x_])
+            #     index += 1
+            # del x_
+            # del y_
 
             self.dvmb_loss.on_epoch_end(ite, logs={'loss': loss[0]})
             self.dvmb_decoderloss.on_epoch_end(ite, logs={'decoder_loss': loss[2]})

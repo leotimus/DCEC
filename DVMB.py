@@ -155,43 +155,42 @@ class DVMB(object):
         loss = [0, 0, 0]
         index = 0
         size = len(x)
+        q, tmp = self.model.predict(x=x, batch_size=self.batch_size, verbose=0)
+        del tmp
+        p = self.target_distribution(q)  # update the auxiliary target distribution p
         for ite in range(int(maxiter)):
-            if ite % update_interval == 0:
-                q, tmp = self.model.predict(x=x, batch_size=self.batch_size, verbose=0)
-                del tmp
-                p = self.target_distribution(q)  # update the auxiliary target distribution p
-
-                # evaluate the clustering performance
-                self.y_pred = q.argmax(1)
-                if y is not None:
-                    acc = np.round(metrics.acc(y, self.y_pred), 5)
-                    nmi = np.round(metrics.nmi(y, self.y_pred), 5)
-                    ari = np.round(metrics.ari(y, self.y_pred), 5)
-                    loss = np.round(loss, 5)
-                    logdict = dict(iter=ite, acc=acc, nmi=nmi, ari=ari, L=loss[0], Lc=loss[1], Lr=loss[2])
-                    logwriter.writerow(logdict)
-                    print('Iter', ite, ': Acc', acc, ', nmi', nmi, ', ari', ari, '; loss=', loss)
-
-                # check stop criterion
-                delta_label = np.sum(self.y_pred != y_pred_last).astype(np.float32) / self.y_pred.shape[0]
-                y_pred_last = np.copy(self.y_pred)
-                if ite > 0 and delta_label < tol:
-                    print('delta_label ', delta_label, '< tol ', tol)
-                    print('Reached tolerance threshold. Stopping training.')
-                    logfile.close()
-                    break
+            # if ite % update_interval == 0:
+            #
+            #
+            #     # evaluate the clustering performance
+            #     self.y_pred = q.argmax(1)
+            #     if y is not None:
+            #         acc = np.round(metrics.acc(y, self.y_pred), 5)
+            #         nmi = np.round(metrics.nmi(y, self.y_pred), 5)
+            #         ari = np.round(metrics.ari(y, self.y_pred), 5)
+            #         loss = np.round(loss, 5)
+            #         logdict = dict(iter=ite, acc=acc, nmi=nmi, ari=ari, L=loss[0], Lc=loss[1], Lr=loss[2])
+            #         logwriter.writerow(logdict)
+            #         print('Iter', ite, ': Acc', acc, ', nmi', nmi, ', ari', ari, '; loss=', loss)
+            #
+            #     # check stop criterion
+            #     delta_label = np.sum(self.y_pred != y_pred_last).astype(np.float32) / self.y_pred.shape[0]
+            #     y_pred_last = np.copy(self.y_pred)
+            #     if ite > 0 and delta_label < tol:
+            #         print('delta_label ', delta_label, '< tol ', tol)
+            #         print('Reached tolerance threshold. Stopping training.')
+            #         logfile.close()
+            #         break
 
             # train on batch
             if (index + 1) * batch_size >= size:
                 x_ = x[index * batch_size::]
                 y_ = p[index * batch_size::]
-                predict = self.vae.encoder.predict(x=x_)
                 loss = self.model.train_on_batch(x=x_, y=[y_, x_])
                 index = 0
             else:
                 x_ = x[index * batch_size:(index + 1) * batch_size]
                 y_ = p[index * batch_size:(index + 1) * batch_size]
-                predict = self.vae.encoder.predict(x=x_)
                 loss = self.model.train_on_batch(x=x_, y=[y_, x_])
                 index += 1
             print(f'Observe loss: {loss}')

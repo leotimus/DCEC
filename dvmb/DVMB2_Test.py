@@ -1,16 +1,29 @@
 import contextlib
-import os
 import shutil
 import subprocess
 from pathlib import Path
 
 import numpy as np
 import sklearn
+from keras.utils.tf_utils import set_random_seed
 
 from dvmb.DVMB2 import DVMB2
 from reader.SequenceReader import readContigs
 from vae.VAE_Test import get_input
 from writer.BinWriter import mapBinAndContigNames, writeBins
+import tensorflow as tf
+
+#disable random
+set_random_seed(2)
+try:
+    # Disable all GPUS
+    tf.config.set_visible_devices([], 'GPU')
+    visible_devices = tf.config.get_visible_devices()
+    for device in visible_devices:
+        assert device.device_type != 'GPU'
+except:
+    # Invalid device or cannot modify virtual devices once initialized.
+    pass
 
 
 def run_deep_clustering(save_dir='results/dvmb_model2',
@@ -23,11 +36,11 @@ def run_deep_clustering(save_dir='results/dvmb_model2',
     destroy = False
 
     tnf, rpkm = get_input(batch_size, destroy, save_dir='/share_data/cami_low/npzs')
-    tnf = sklearn.preprocessing.minmax_scale(tnf, feature_range=(0, 1), axis=1, copy=True)
-    rpkm = sklearn.preprocessing.minmax_scale(rpkm, feature_range=(0, 1), axis=0, copy=True)
+    # tnf = sklearn.preprocessing.minmax_scale(tnf, feature_range=(0, 1), axis=1, copy=True)
+    # rpkm = sklearn.preprocessing.minmax_scale(rpkm, feature_range=(0, 1), axis=0, copy=True)
 
-    print(f'x_max={np.max(tnf)}, x_min={np.min(tnf)}')
-    print(f'x1_max={np.max(rpkm)}, x1_min={np.min(rpkm)}')
+    # print(f'x_max={np.max(tnf)}, x_min={np.min(tnf)}')
+    # print(f'x1_max={np.max(rpkm)}, x1_min={np.min(rpkm)}')
 
     inputs = []
     for idx, tnf in enumerate(tnf):
@@ -70,7 +83,7 @@ if __name__ == "__main__":
 
     n_clusters = 60
     batch_size = 256
-    n_epoch = 300
+    n_epoch = 500
     n_hidden = 64
     use_batch_norm = False
     input_shape = (104,)
@@ -87,9 +100,9 @@ if __name__ == "__main__":
     # n_epochs = [1,5,10,15,20,25,30,35,40,45,50]
     # n_epochs = [500,600,700,800,900,1000]
 
-    case = 'default_normal_with_plot'
+    case = 'one_target_distribution'
     # max_iters = range(1, 5000, 5)
-    max_iters = [1000]
+    max_iters = [2100]
 
     for max_iter in max_iters:
         lwss = f'lw{loss_weights[0]}-{loss_weights[1]}'
