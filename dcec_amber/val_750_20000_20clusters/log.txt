@@ -1,0 +1,23 @@
+2022-05-18 10:57:24,428 INFO Found @Version:0.9.1
+2022-05-18 10:57:24,428 INFO Found @SampleID:gsa
+2022-05-18 10:57:24,444 CRITICAL File /mnt/c/Python/Source/DCEC/dcec_amber/750_20000_20clusters.tsv not found or malformed. [Errno 2] No such file or directory: '/mnt/c/Python/Source/DCEC/dcec_amber/750_20000_20clusters.tsv'
+2022-05-18 10:57:24,464 INFO Loading gsa
+2022-05-18 10:59:14,995 INFO Found @Version:0.9.1
+2022-05-18 10:59:14,995 INFO Found @SampleID:gsa
+2022-05-18 10:59:15,001 CRITICAL File /mnt/c/Python/Source/DCEC/dcec_amber/750_20000_20clusters.tsv not found or malformed. [Errno 2] No such file or directory: '/mnt/c/Python/Source/DCEC/dcec_amber/750_20000_20clusters.tsv'
+2022-05-18 10:59:15,024 INFO Loading gsa
+2022-05-18 11:00:05,183 INFO Found @Version:0.9.0
+2022-05-18 11:00:05,184 INFO Found @Version:0.9.1
+2022-05-18 11:00:05,185 INFO Found @SampleID:gsa
+2022-05-18 11:00:05,185 INFO Found @SampleID:gsa
+2022-05-18 11:00:05,203 INFO Loading gsa
+2022-05-18 11:00:05,238 INFO Loading gsa
+2022-05-18 11:00:05,271 INFO Loading Gold standard
+2022-05-18 11:00:05,277 INFO Loading DCEC
+2022-05-18 11:00:05,284 INFO Creating output directories
+2022-05-18 11:00:05,293 INFO Evaluating Gold standard (sample gsa, genome binning)
+2022-05-18 11:00:05,371 INFO Evaluating DCEC (sample gsa, genome binning)
+2022-05-18 11:00:05,478 INFO Saving computed metrics
+2022-05-18 11:00:05,519 INFO Creating genome binning plots
+2022-05-18 11:00:10,967 INFO Creating HTML page
+2022-05-18 11:00:11,845 INFO AMBER finished successfully. All results have been saved to /mnt/c/Python/Source/DCEC/dcec_amber/val_750_20000_20clusters

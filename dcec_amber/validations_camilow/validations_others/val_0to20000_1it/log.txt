@@ -1,0 +1,24 @@
+2022-05-18 10:47:03,117 INFO Found @Version:0.9.0
+2022-05-18 10:47:03,118 INFO Found @SampleID:_SAMPLEID_
+2022-05-18 10:47:03,121 INFO Found @Version:0.9.1
+2022-05-18 10:47:03,121 INFO Found @SampleID:gsa
+2022-05-18 10:47:03,151 INFO Loading _SAMPLEID_
+2022-05-18 10:47:03,162 INFO Loading gsa
+2022-05-18 10:47:03,229 INFO Loading Gold standard
+2022-05-18 10:47:03,236 INFO Loading DCEC
+2022-05-18 10:47:03,237 CRITICAL Sample ID _SAMPLEID_ in DCEC not found in the gold standard.
+2022-05-18 10:48:01,372 INFO Found @Version:0.9.0
+2022-05-18 10:48:01,373 INFO Found @Version:0.9.1
+2022-05-18 10:48:01,373 INFO Found @SampleID:gsa
+2022-05-18 10:48:01,373 INFO Found @SampleID:gsa
+2022-05-18 10:48:01,407 INFO Loading gsa
+2022-05-18 10:48:01,423 INFO Loading gsa
+2022-05-18 10:48:01,466 INFO Loading Gold standard
+2022-05-18 10:48:01,472 INFO Loading DCEC
+2022-05-18 10:48:01,482 INFO Creating output directories
+2022-05-18 10:48:01,491 INFO Evaluating Gold standard (sample gsa, genome binning)
+2022-05-18 10:48:01,596 INFO Evaluating DCEC (sample gsa, genome binning)
+2022-05-18 10:48:01,723 INFO Saving computed metrics
+2022-05-18 10:48:01,764 INFO Creating genome binning plots
+2022-05-18 10:48:07,444 INFO Creating HTML page
+2022-05-18 10:48:08,354 INFO AMBER finished successfully. All results have been saved to /mnt/c/Python/Source/DCEC/dcec_amber/val_0to20000_1it

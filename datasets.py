@@ -49,9 +49,31 @@ def load_usps(data_path='./data/usps'):
     print('USPS samples', x.shape)
     return x, y
 
+def create_gold_standard_file(contigKeys):
+    #create new gold standard file based on available contigs, set by
+
+    print('Creating new gold standard file....')
+
+    newGoldStandardFile = open('C:/Python/Datasets/gold_standard.binning', 'w')
+
+    newGoldStandardFile.write('@Version:0.9.1' + '\n')    
+    newGoldStandardFile.write('@SampleID:gsa' + '\n')    
+    newGoldStandardFile.write('\n')
+    newGoldStandardFile.write('@@SEQUENCEID BINID   TAXID   _contig_id  _number_reads   _LENGTH' + '\n')
+
+    goldStandardList = np.loadtxt("C:/Python/Datasets/gsa_mapping_with_length.binning", delimiter='\t', dtype=str, skiprows=(4))
+
+    for i in goldStandardList:
+        seqID = i[0]
+
+        if seqID in contigKeys:
+            newGoldStandardFile.write(str(i[0]) + '\t' + str(i[1]) + '\t' + str(i[2])+ '\t' + str(i[3]) + '\t' + str(i[4]) + '\t' + str(i[5]) + '\n')
+
+    newGoldStandardFile.close()
+    print('Done...')
 
 def load_fasta(n_samples=None, contig_len=1000):
-    lst = get_sequence_samples(n_samples)
+    lst = get_azolla_samples(n_samples)
     data = [decode(contig, contig_len) for contig in lst]
     for i in data:
         if i.shape != (contig_len, 4):
@@ -59,19 +81,70 @@ def load_fasta(n_samples=None, contig_len=1000):
     
     x = np.array(data)
     print('FASTA:', x.shape)
-    x = x.reshape(-1, contig_len, 4, 1).astype('float32')
+    x = x.reshape(-1, contig_len, 4).astype(np.float32)
     print('FASTA:', x.shape)
     return x, None
 
+def get_azolla_samples(n_samples=None, min_length=750):
+    contigLengths = open('./results/contig_length.txt', 'w')
 
-def get_sequence_samples(n_samples=None):
-    fastaFile = "/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta"
+    fastaFile = "C:/Python/Datasets/azolla.fasta"
     contigs = sr.readContigs(fastaFile, numberOfSamples=n_samples)
     print(f'Parsed {len(contigs.keys())} contigs')
-    lst = list(contigs.values())
+    newContigs = dict()
+    for key, value in contigs.items():
+        contigLengths.write(str(len(value)) + '\n')
+        if len(value)>=min_length:
+            newContigs[key] = value
+    
+    print(len(newContigs.keys()))    
+    lst = list(newContigs.values())
+
+    contigLengths.close()
     return lst
 
+def get_sequence_samples(n_samples=None, min_length=750):
+    fastaFile = "C:/Python/Datasets/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta"
+    contigs = sr.readContigs(fastaFile, numberOfSamples=n_samples)
+    print(f'Parsed {len(contigs.keys())} contigs')
+    newContigs = dict()
+    for key, value in contigs.items():
+        if len(value)>=min_length:
+            newContigs[key] = value
+    print(len(newContigs.keys()))
+    binList = get_bin_sequence(list(newContigs.keys()))
+    #create_gold_standard_file(list(newContigs.keys()))
+    
+    lst = list(newContigs.values())
+    return lst, binList
 
+def get_bin_sequence(contigKeys):
+    binlist = []
+    binValuelist = []
+    
+    originalList = np.loadtxt("C:/Python/Datasets/gsa_mapping_header.binning", delimiter='\t', dtype=str, skiprows=(1))
+    originalList = originalList[:,[0,1]] 
+    
+    for i in contigKeys:
+        binID = np.where(originalList[:,0] == i)
+        bin = originalList[binID]
+        binValue = bin[0][1]
+        
+        if binValuelist.count(binValue) > 750:
+            binNumber = binValuelist.index(binValue)
+        else:
+            binValuelist.append(binValue)
+            binNumber = binValuelist.index(binValue)
+            
+        binlist.append(binNumber)
+
+        if i == "RL|S1|C1412":
+            print("Contig: ", i)
+            print("Original Bin:", binValue)
+            print("New Bin ID:", binNumber)
+        
+    return binlist 
+    
 def myMapCharsToInteger(data):
   # define universe of possible input values
   seq = 'ACTGO'
@@ -97,7 +170,7 @@ def setSequenceLength(n, size):
     if len(n) > size:
         return n[:size]
     elif len(n) < size:
-        padding = np.array([[-1., -1., -1., -1.]] *(size - len(n)))
+        padding = np.array([[0., 0., 0., 0.]] *(size - len(n)))
         n = np.concatenate((n, padding), axis=0)
     return n
 
