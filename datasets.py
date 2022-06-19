@@ -3,51 +3,7 @@ import numpy as np
 import tensorflow
 
 import reader.SequenceReader as sr
-import matplotlib.pyplot as plt
 
-
-def load_mnist():
-    # the data, shuffled and split between train and test sets
-    from keras.datasets import mnist
-    (x_train, y_train), (x_test, y_test) = mnist.load_data()
-
-    x = np.concatenate((x_train, x_test))
-    y = np.concatenate((y_train, y_test))
-    x = x.reshape(-1, 28, 28, 1).astype('float32')
-    x = x/255.
-    print('MNIST:', x.shape)
-    return x, y
-
-
-def load_usps(data_path='./data/usps'):
-    import os
-    if not os.path.exists(data_path+'/usps_train.jf'):
-        if not os.path.exists(data_path+'/usps_train.jf.gz'):
-            os.system('wget http://www-i6.informatik.rwth-aachen.de/~keysers/usps_train.jf.gz -P %s' % data_path)
-            os.system('wget http://www-i6.informatik.rwth-aachen.de/~keysers/usps_test.jf.gz -P %s' % data_path)
-        os.system('gunzip %s/usps_train.jf.gz' % data_path)
-        os.system('gunzip %s/usps_test.jf.gz' % data_path)
-
-    with open(data_path + '/usps_train.jf') as f:
-        data = f.readlines()
-    data = data[1:-1]
-    data = [list(map(float, line.split())) for line in data]
-    data = np.array(data)
-    data_train, labels_train = data[:, 1:], data[:, 0]
-
-    with open(data_path + '/usps_test.jf') as f:
-        data = f.readlines()
-    data = data[1:-1]
-    data = [list(map(float, line.split())) for line in data]
-    data = np.array(data)
-    data_test, labels_test = data[:, 1:], data[:, 0]
-
-    x = np.concatenate((data_train, data_test)).astype('float32')
-    x /= 2.0
-    x = x.reshape([-1, 16, 16, 1])
-    y = np.concatenate((labels_train, labels_test))
-    print('USPS samples', x.shape)
-    return x, y
 
 def create_gold_standard_file(contigKeys):
     #create new gold standard file based on available contigs, set by
@@ -85,10 +41,10 @@ def load_fasta(n_samples=None, contig_len=1000):
     print('FASTA:', x.shape)
     return x, None
 
-def get_azolla_samples(n_samples=None, min_length=750):
-    contigLengths = open('./results/contig_length.txt', 'w')
+def get_azolla_samples(n_samples=None, min_length=0):
+    contigLengths = open('./results/contig_azolla_length.txt', 'w')
 
-    fastaFile = "C:/Python/Datasets/azolla.fasta"
+    fastaFile = "/mnt/c/Python/Datasets/azolla.fasta"
     contigs = sr.readContigs(fastaFile, numberOfSamples=n_samples)
     print(f'Parsed {len(contigs.keys())} contigs')
     newContigs = dict()
@@ -104,7 +60,7 @@ def get_azolla_samples(n_samples=None, min_length=750):
     return lst
 
 def get_sequence_samples(n_samples=None, min_length=750):
-    fastaFile = "C:/Python/Datasets/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta"
+    fastaFile = "/mnt/c/Python/Datasets/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta"
     contigs = sr.readContigs(fastaFile, numberOfSamples=n_samples)
     print(f'Parsed {len(contigs.keys())} contigs')
     newContigs = dict()
@@ -122,7 +78,7 @@ def get_bin_sequence(contigKeys):
     binlist = []
     binValuelist = []
     
-    originalList = np.loadtxt("C:/Python/Datasets/gsa_mapping_header.binning", delimiter='\t', dtype=str, skiprows=(1))
+    originalList = np.loadtxt("/mnt/c/Python/Datasets/gsa_mapping_header.binning", delimiter='\t', dtype=str, skiprows=(1))
     originalList = originalList[:,[0,1]] 
     
     for i in contigKeys:

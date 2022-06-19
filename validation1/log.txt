@@ -1,2 +1,0 @@
-2022-04-12 11:41:09,269 CRITICAL File gsa_mapping_with_length.binning not found or malformed. [Errno 2] No such file or directory: 'gsa_mapping_with_length.binning'
-2022-04-12 11:41:09,269 CRITICAL File /home/jpolas20/Source/DCEC_project/DCEC/dcec-bins.tsv not found or malformed. [Errno 2] No such file or directory: '/home/jpolas20/Source/DCEC_project/DCEC/dcec-bins.tsv'

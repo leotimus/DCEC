@@ -4,8 +4,8 @@ from vamb.__main__ import calc_tnf, calc_rpkm
 
 import reader.SequenceReader as sr
 import numpy as np
-from DCEC import DCEC
-from ConvAE2 import CAE2
+from DCMB import DCEC
+from ConvAE import CAE2
 from datasets import load_fasta, get_sequence_samples
 import tensorflow as tf
 from writer.BinWriter import writeBins, mapBinAndContigNames
