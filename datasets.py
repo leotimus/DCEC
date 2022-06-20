@@ -16,7 +16,7 @@ def load_mnist():
     x = x.reshape(-1, 28, 28, 1).astype('float32')
     x = x/255.
     print('MNIST:', x.shape)
-    return x, y
+    return x
 
 
 def load_usps(data_path='./data/usps'):

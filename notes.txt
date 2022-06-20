@@ -3,10 +3,10 @@
 1. use tools conda profile
 conda activate tools
 2. convert to bin process list
-~/Projects/amber/src/utils/convert_fasta_bins_to_biobox_format.py ~/Projects/DCEC/results/fasta/bins/*.fna -o dcec_amber/dcec-bins.tsv
+/share_data/amber/src/utils/convert_fasta_bins_to_biobox_format.py ~/Projects/DCEC/results/dvmb0/bins/*.fna -o dcec_amber/dvmb-bins.tsv
 ~/Projects/amber/src/utils/convert_fasta_bins_to_biobox_format.py ~/Projects/DCEC/results/debug1/bins/*.fna -o dcec_amber/dcec-bins.tsv
 3. execute amber
-amber.py -g gsa_mapping_with_length.binning  dcec_amber/dcec-bins.tsv -l DCEC -o dcec_amber/validation1
+amber.py -g gsa_mapping_with_length.binning  dcec_amber/dvmb-bins.tsv -l dvmb -o dcec_amber/dvmb0
 
 
 20k len & 200 iter
@@ -17,3 +17,8 @@ Current iteration 199.
 saving model to: results/debug2/dcec_model_final.h5
 Clustering time: 10869.382817029953
 Total time:      10869.382817029953
+
+
+https://github.com/piyush01123/VAE-MNIST-Keras/blob/master/VAE.ipynb
+https://github.com/lyeoni/keras-mnist-VAE/blob/master/keras-mnist-VAE.ipynb
+https://github.com/keras-team/keras-io/blob/master/examples/generative/vae.py

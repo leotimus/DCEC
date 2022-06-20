@@ -23,7 +23,7 @@ def readContigs(fastaFile, minLength=100, numberOfSamples=None, onlySequence=Tru
             else:
                 if len(entry) < minLength:
                     continue
-                if onlySequence:
+                if onlySequence:      
                     raws[entry.header] = entry.sequence
                 else:
                     raws[entry.header] = entry
