@@ -62,7 +62,7 @@ if __name__ == "__main__":
         os.makedirs(args.save_dir)
 
     # load dataset
-    from datasets import get_sequence_samples
+    from dsmb.datasets import get_sequence_samples
 
     x, y = load_fasta()
 
@@ -97,6 +97,6 @@ if __name__ == "__main__":
 
     features = np.reshape(features, newshape=(features.shape[0], -1))
     pred = km.fit_predict(features)
-    from . import metrics
+    from dsmb import metrics
 
     print('acc=', metrics.acc(y, pred), 'nmi=', metrics.nmi(y, pred), 'ari=', metrics.ari(y, pred))

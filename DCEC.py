@@ -1,14 +1,9 @@
 from time import time
 import numpy as np
 import keras.backend as K
-import tensorflow as tf
 from tensorflow import keras
 from sklearn.cluster import KMeans
-import metrics
-from ConvAE2 import CAE2
-from reader.DCECDataGenerator import DCECDataGenerator
-from reader.DataGenerator import DataGenerator
-from datasets import get_sequence_samples, decode
+from dsmb import metrics
 from vae.VAE import VAE1
 
 
@@ -95,7 +90,7 @@ class DCEC(object):
         destroy = False
         cae = VAE1(batch_size=batch_size, n_epoch=n_epoch,
                    n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
-        cae.vae.compile(optimizer='adam')
+        cae.sae.compile(optimizer='adam')
 
         self.clustering_layer = ClusteringLayer(60, name='clustering')(cae.encoder(cae.encoder_input)[2])
 
@@ -108,18 +103,18 @@ class DCEC(object):
 
     def pretrain(self, x, batch_size=256, epochs=200, optimizer='adam', save_dir='results/temp'):
         print('...Pretraining...')
-        self.cae.vae.compile(optimizer=optimizer, loss='mse')
+        self.cae.sae.compile(optimizer=optimizer, loss='mse')
         from keras.callbacks import CSVLogger
         csv_logger = CSVLogger(save_dir + '/pretrain_log.csv')
 
         # begin training
         t0 = time()
         # cae_generator = DataGenerator(x, batch_size=batch_size, contig_len=self.contig_len)
-        self.cae.vae.fit(x=x, y=x, batch_size=batch_size, epochs=epochs, callbacks=[csv_logger])
+        self.cae.sae.fit(x=x, y=x, batch_size=batch_size, epochs=epochs, callbacks=[csv_logger])
         print('Pretraining time: ', time() - t0)
-        self.cae.vae.save(save_dir + '/pretrain_cae_model.h5')
+        self.cae.sae.save(save_dir + '/pretrain_cae_model.h5')
         print(f'Pretrained weights are saved to {save_dir}/pretrain_cae_model.h5, reload weights')
-        self.cae.vae.load_weights(save_dir + '/pretrain_cae_model.h5')
+        self.cae.sae.load_weights(save_dir + '/pretrain_cae_model.h5')
         self.pretrained = True
 
     def load_weights(self, weights_path):
@@ -287,6 +282,6 @@ class DCEC(object):
             self.pretrain(x, batch_size, save_dir=save_dir)
             self.pretrained = True
         elif cae_weights is not None:
-            self.cae.vae.load_weights(cae_weights)
+            self.cae.sae.load_weights(cae_weights)
             print('cae_weights is loaded successfully.')
         print('Pretrain time:  ', time() - t0)

@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from datasets import decode
+from dsmb.datasets import decode
 
 
 class DCECDataGenerator(tf.keras.utils.Sequence):

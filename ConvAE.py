@@ -51,7 +51,7 @@ if __name__ == "__main__":
         os.makedirs(args.save_dir)
 
     # load dataset
-    from datasets import load_mnist, load_usps, load_fasta
+    from dsmb.datasets import load_mnist, load_usps, load_fasta
 
     if args.dataset == 'mnist':
         x, y = load_mnist()
@@ -90,6 +90,6 @@ if __name__ == "__main__":
 
     features = np.reshape(features, newshape=(features.shape[0], -1))
     pred = km.fit_predict(features)
-    from . import metrics
+    from dsmb import metrics
 
     print('acc=', metrics.acc(y, pred), 'nmi=', metrics.nmi(y, pred), 'ari=', metrics.ari(y, pred))

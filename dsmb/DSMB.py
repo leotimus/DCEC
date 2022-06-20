@@ -5,7 +5,7 @@ import keras.backend as K
 from tensorflow import keras
 from sklearn.cluster import KMeans
 import metrics
-from VAE_Dense import VAE
+from SAE import SAE
 
 
 class ClusteringLayer(keras.layers.Layer):
@@ -71,10 +71,10 @@ class ClusteringLayer(keras.layers.Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class DVMB(object):
-    def __init__(self, n_hidden=64, batch_size=256, n_epoch=100, n_clusters=60, save_dir='results/vae2'):
+class DSMB(object):
+    def __init__(self, n_hidden=64, batch_size=256, n_epoch=100, n_clusters=60, save_dir='results/dsmb'):
 
-        super(DVMB, self).__init__()
+        super(DSMB, self).__init__()
         self.save_dir = save_dir
         self.n_clusters = n_clusters
         self.pretrained = False
@@ -85,52 +85,39 @@ class DVMB(object):
         self.z_mean = None
       
 
-        self.vae = VAE(batch_size=batch_size, n_epoch=n_epoch,
-                  n_hidden=n_hidden, input_shape=(104, ), print_model=True, save_dir=save_dir)
+        self.sae = SAE(batch_size=batch_size, n_epoch=n_epoch,
+                       n_hidden=n_hidden, input_shape=(104, ), print_model=True, save_dir=save_dir)
 
-        #not in dcec version
-        #self.vae.model.compile(optimizer='adam')
 
-        encoder_latent_space_layer = self.vae.encoder(self.vae.encoder_input)
+        encoder_latent_space_layer = self.sae.encoder(self.sae.encoder_input)
         self.clustering_layer = ClusteringLayer(60, name='clustering')(encoder_latent_space_layer)
 
       
 
-        # Define DVMB model
-        self.model = keras.models.Model(inputs=self.vae.encoder_input,
-                                        outputs=[self.clustering_layer, self.vae.outputs])
-        keras.utils.plot_model(self.model, to_file=f'{save_dir}/dvmb.png', show_shapes=True)
-
-    # def vae_loss(self, y_true, y_pred):
-    #     """ Calculate loss = reconstruction loss + KL loss for each data in minibatch """
-    #     # E[log P(X|z)]
-    #     recon = K.sum(K.binary_crossentropy(y_pred, y_true), axis=1)
-    #     # D_KL(Q(z|X) || P(z|X)); calculate in closed form as both dist. are Gaussian
-    #     kl = 0.5 * K.sum(K.exp(self.z_log_var))
-    #     return recon + kl
-
+        self.model = keras.models.Model(inputs=self.sae.encoder_input,
+                                        outputs=[self.clustering_layer, self.sae.outputs])
+        keras.utils.plot_model(self.model, to_file=f'{save_dir}/dsmb.png', show_shapes=True)
 
     def pretrain(self, x, batch_size=256, epochs=100, optimizer='adam'):
         print('...Pretraining...')
-         #self.vae.model.add_loss(self.vae.final_loss(self.vae.encoder_input, self.vae.outputs))
-        self.vae.model.compile(optimizer=optimizer, loss='mse')
+        self.sae.model.compile(optimizer=optimizer, loss='mse')
         from keras.callbacks import CSVLogger
         csv_logger = CSVLogger(f'{self.save_dir}/pretrain_log.csv')
 
         # begin training
         t0 = time()
-        self.vae.model.fit(x=x, y=x, batch_size=batch_size, epochs=epochs, callbacks=[csv_logger])
+        self.sae.model.fit(x=x, y=x, batch_size=batch_size, epochs=epochs, callbacks=[csv_logger])
         print('Pretraining time: ', time() - t0)
-        self.vae.model.save(f'{self.save_dir}/pretrain_vae_model.h5')
-        print(f'Pretrained weights are saved to {self.save_dir}/pretrain_vae_model.h5, reload weights')
-        self.vae.model.load_weights(f'{self.save_dir}/pretrain_vae_model.h5')
+        self.sae.model.save(f'{self.save_dir}/pretrain_sae_model.h5')
+        print(f'Pretrained weights are saved to {self.save_dir}/pretrain_sae_model.h5, reload weights')
+        self.sae.model.load_weights(f'{self.save_dir}/pretrain_sae_model.h5')
         self.pretrained = True
 
     def load_weights(self, weights_path):
         self.model.load_weights(weights_path)
 
     def extract_feature(self, x):  # extract features from before clustering layer
-        return self.vae.encoder.predict(x)
+        return self.sae.encoder.predict(x)
 
     def predict(self, x, batch_size):
 
@@ -172,7 +159,7 @@ class DVMB(object):
         t1 = time()
         print(f'Initializing cluster centers with k-means {self.n_clusters}.')
         kmeans = KMeans(n_clusters=self.n_clusters, n_init=20)
-        latent_space = self.vae.encoder.predict(x=x)
+        latent_space = self.sae.encoder.predict(x=x)
         z = latent_space
         self.y_pred = kmeans.fit_predict(z)
         y_pred_last = np.copy(self.y_pred)
@@ -246,26 +233,10 @@ class DVMB(object):
 
                 loss = self.model.train_on_batch(x=x, y=[p, x])
                 print(f'Observe loss: {loss}.')
-            # train on batch
-            # if (index + 1) * batch_size >= size:
-            #     x_ = x[index * batch_size::]
-            #     y_ = p[index * batch_size::]
-            #     loss = self.model.train_on_batch(x=x_, y=[y_, x_])
-            #      # ls = self.vae.encoder.predict(x=x_)
-            #     index = 0
-            # else:
-            #     x_ = x[index * batch_size:(index + 1) * batch_size]
-            #     y_ = p[index * batch_size:(index + 1) * batch_size]
-            #     ls = self.vae.encoder.predict(x=x_)
-            #     loss = self.model.train_on_batch(x=x_, y=[y_, x_])
-            #     index += 1
-            # print(f'Observe loss: {loss}.')
-            # del x_
-            # del y_
 
             # save intermediate model
             if ite != 0 and ite % save_interval == 0:
-                # save DVMB model checkpoints
+                # save DSMB model checkpoints
                 Path(f'{self.save_dir}/cp').mkdir(parents=True, exist_ok=True)
                 file = f'{self.save_dir}/cp/dcec_model_{str(ite)}.h5'
                 print(f'saving model to: {file} of iteration={ite}')
@@ -282,20 +253,10 @@ class DVMB(object):
         print('Clustering time:', t2 - t1)
         print('Total time:     ', t2 - t0)
 
-    def init_vae(self, vae_weights=None, x=None):
+    def init_sae(self, sae_weights=None, x=None):
         t0 = time()
 
-        print(f'pretraining VAE using default hyper-parameters:')
+        print(f'pretraining SAE using default hyper-parameters:')
         print(f'optimizer=\'adam\', epochs={self.n_epoch}')
         self.pretrain(x, self.batch_size)
         self.pretrained = True
-
-        # if not self.pretrained and vae_weights is None:
-        #     print(f'pretraining VAE using default hyper-parameters:')
-        #     print(f'optimizer=\'adam\', epochs={self.n_epoch}')
-        #     self.pretrain(x, self.batch_size)
-        #     self.pretrained = True
-        # elif vae_weights is not None:
-        #     self.vae.model.load_weights(vae_weights)
-        #     print('vae_weights is loaded successfully.')
-        # print('Pretrain time:  ', time() - t0)

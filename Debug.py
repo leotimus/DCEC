@@ -4,7 +4,7 @@ from vamb.__main__ import calc_tnf, calc_rpkm
 
 import reader.SequenceReader as sr
 from DCEC import DCEC
-from datasets import load_fasta, get_sequence_samples
+from dsmb.datasets import get_sequence_samples
 import tensorflow as tf
 from writer.BinWriter import writeBins, mapBinAndContigNames
 

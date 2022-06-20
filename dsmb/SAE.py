@@ -1,15 +1,14 @@
-from keras import Model, backend as K, Input
-from keras.layers import Dense, Lambda
+from keras import Model, Input
+from keras.layers import Dense
 from keras.losses import mse
-import tensorflow as tf
 from tensorflow import keras
 
 
-class VAE(object):
+class SAE(object):
 
     def __init__(self, batch_size=100, n_epoch=100, n_hidden=256, input_shape=None,
                  print_model=True, save_dir='results/', loss_func=None):
-        super(VAE, self).__init__()
+        super(SAE, self).__init__()
         self.batch_size = batch_size
         self.n_epoch = n_epoch
         self.n_hidden = n_hidden
@@ -21,10 +20,10 @@ class VAE(object):
         self.decoder = self.decoder_model(input_shape)
         self.outputs = self.decoder(self.encoder(self.encoder_input))
 
-        self.model = Model(self.encoder_input, self.outputs, name='vae')
+        self.model = Model(self.encoder_input, self.outputs, name='sae')
         if self.print_model:
             self.model.summary()
-            keras.utils.plot_model(self.model, to_file=f'{self.save_dir}/vae.png', show_shapes=True)
+            keras.utils.plot_model(self.model, to_file=f'{self.save_dir}/sae.png', show_shapes=True)
 
     def create_encoder(self, input_shape) -> (Input, Model, Dense, Dense):
         inputs = Input(shape=input_shape, name='encoder_input')
@@ -37,7 +36,7 @@ class VAE(object):
         encoder = Model(inputs, output, name='encoder')
         if self.print_model:
             encoder.summary()
-            keras.utils.plot_model(encoder, to_file=f'{self.save_dir}/vae_encoder.png', show_shapes=True)
+            keras.utils.plot_model(encoder, to_file=f'{self.save_dir}/sae_encoder.png', show_shapes=True)
         return inputs, encoder
 
     def mse_loss(self, encoder_input, outputs):
@@ -56,5 +55,5 @@ class VAE(object):
         decoder = Model(latent_inputs, outputs, name='decoder')
         if self.print_model:
             decoder.summary()
-            keras.utils.plot_model(decoder, to_file=f'{self.save_dir}/vae_decoder.png', show_shapes=True)
+            keras.utils.plot_model(decoder, to_file=f'{self.save_dir}/sae_decoder.png', show_shapes=True)
         return decoder
