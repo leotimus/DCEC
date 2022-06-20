@@ -8,6 +8,17 @@ conda activate tools
 3. execute amber
 amber.py -g gsa_mapping_with_length.binning  dcec_amber/dvmb-bins.tsv -l dvmb -o dcec_amber/dvmb0
 
+amber.py -g /share_data/cami_low/gsa_mapping_with_length.binning  \
+n60-b256-e500-h64-voAdam-oAdam-ui100-mi1-lw0.1-1/amber.tsv \
+n60-b256-e500-h64-voAdam-oAdam-ui100-mi100-lw0.1-1/amber.tsv \
+n60-b256-e500-h64-voAdam-oAdam-ui100-mi900-lw0.1-1/amber.tsv \
+n60-b256-e500-h64-voAdam-oAdam-ui100-mi1200-lw0.1-1/amber.tsv \
+../../dsmb/update_target_distribution/100epoch_cpu_100iteration//amber.tsv \
+../../dsmb/update_target_distribution/100epoch_cpu_900iteration//amber.tsv \
+../../dsmb/update_target_distribution/100epoch_cpu_1200iteration//amber.tsv \
+-l "DVMB 1 Iter, DVMB 100 Iter, DVMB 900 Iter, DVMB 1200 Iter, DSMB 100 Iter, DSMB 900 Iter, DSMB 1200 Iter" \
+-o amber_report
+
 
 20k len & 200 iter
 Current iteration 196.

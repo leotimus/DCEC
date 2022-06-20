@@ -1,60 +1,19 @@
 import os
 from pathlib import Path
 
-import vamb
-from keras.datasets import mnist
-import matplotlib.pyplot as plt
 import numpy as np
-from keras.layers import Dense
-from keras.losses import mse, kld
-import keras.backend as K
-from keras.models import Model
-from vamb.__main__ import calc_tnf, calc_rpkm
-from vamb.vambtools import numpy_inplace_maskarray, write_npz
+import sklearn.preprocessing
+from keras.datasets import mnist
+from keras.optimizer_v2.adam import Adam
 
-from DVMB import DVMB
-from reader.SequenceReader import readContigs
+from plotting.PlotCallback import PlotCallback
 from vae.VAE import VAE
-from vae.VAE_ORG import VAE_ORG
-from writer.BinWriter import mapBinAndContigNames, writeBins
+from vae.VAE_Test import get_input
+import matplotlib.pyplot as plt
 
 
-def test_vamb_ptorch():
-    with open('results/vamb/vectors.log', 'w') as logfile:
-        tnfs, contignames, contiglengths = calc_tnf(outdir='results/vamb',
-                                                    fastapath='/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta',
-                                                    tnfpath=None, namespath=None, lengthspath=None, mincontiglength=100,
-                                                    logfile=logfile)
-        rpkms = calc_rpkm(outdir='results/vamb', bampaths=['/share_data/cami_low/bams/RL_S001.bam'], rpkmpath=None,
-                          jgipath=None, mincontiglength=100, refhash=None, ncontigs=len(tnfs), minalignscore=None,
-                          minid=None,
-                          subprocesses=min(os.cpu_count(), 8), logfile=logfile)
-        print(f'tnfs shape: {tnfs.shape}, rpkms shape: {rpkms}')
-        run_vamb_ptorch(256, 'results/vamb', rpkms, tnfs)
+def pretrain_vae_model_mnist():
 
-
-def run_vamb_ptorch(batch_size, logfile, outdir, rpkm, tnf):
-    nsamples = rpkm.shape[1]
-    vae = vamb.encode.VAE(nsamples, nhiddens=None, nlatent=32,
-                          alpha=None, beta=200, dropout=None, cuda=False)
-    print(vae)
-    dataloader, mask = vamb.encode.make_dataloader(rpkm, tnf, batch_size,
-                                                   destroy=True, cuda=False)
-    vamb.vambtools.write_npz(os.path.join(outdir, 'mask.npz'), mask)
-    n_discarded = len(mask) - mask.sum()
-    print('', file=logfile)
-    modelpath = os.path.join(outdir, 'model.pt')
-    vae.trainmodel(dataloader, nepochs=500, lrate=1e-3, batchsteps=[25, 75, 150, 300],
-                   logfile=logfile, modelfile=modelpath)
-    print('', file=logfile)
-    latent = vae.encode(dataloader)
-    vamb.vambtools.write_npz(os.path.join(outdir, 'latent.npz'), latent)
-    del vae  # Needed to free "latent" array's memory references?
-    return mask, latent
-
-
-def run_vae_mnist():
-    global vae
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
     image_size = x_train.shape[1]
     original_dim = image_size * image_size
@@ -63,39 +22,51 @@ def run_vae_mnist():
     x_train = x_train.astype('float32') / 255
     x_test = x_test.astype('float32') / 255
     input_shape = (original_dim,)
-    save_dir = 'results/vae-org-mnist'
+    save_dir = 'results/vae-model-mnist'
+
     Path(save_dir).mkdir(parents=True, exist_ok=True)
+    test = os.listdir(save_dir)
+    for item in test:
+        if item.endswith(".png"):
+            os.remove(os.path.join(save_dir, item))
+
     batch_size, n_epoch = 100, 100
-    n_hidden, z_dim = 256, 2
+    n_hidden = 256
 
-    vae = VAE_ORG(batch_size=batch_size, n_epoch=n_epoch, n_hidden=n_hidden, input_shape=input_shape, z_dim=z_dim)
-    vae.vae.fit(x_train, epochs=n_epoch, batch_size=batch_size, validation_data=(x_test, None))
-    vae.vae.save_weights(f'{save_dir}/vae_mlp_mnist_latent_dim_{z_dim}.h5')
-    # vae.vae.load_weights(f'{save_dir}/vae_mlp_mnist_latent_dim_{z_dim}.h5')
+    vae: VAE = VAE(input_shape=input_shape, n_hidden=n_hidden, save_dir=save_dir)
+    vae.compile(optimizer='adam')
+    print(f'x_max={np.max(x_train)}, x_min={np.min(x_train)}')
+    plot_callback = PlotCallback(f'{save_dir}/vae-model-mnist-loss0.png', ['loss', 'reconstruction_loss'])
+    plot1_callback = PlotCallback(f'{save_dir}/vae-model-mnist-loss1.png', ['kl_loss'])
+    vae.fit(x_train, epochs=n_epoch, batch_size=batch_size, callbacks=[plot_callback, plot1_callback])
+    vae.save_weights(f'{save_dir}/vae_model_final.h5')
+    plot_callback.plot()
+    plot1_callback.plot()
+    # vae.built = True
+    # vae.load_weights(f'{save_dir}/vae_model_final.h5')
 
-    # vae.vae.load_weights(f'{save_dir}/vae.h5')
-    filename = f'{save_dir}/vae_mean.png'
-    # display a 2D plot of the digit classes in the latent space
     z_mean, _, _ = vae.encoder.predict(x_test, batch_size=batch_size)
     plt.figure(figsize=(12, 10))
     plt.scatter(z_mean[:, 0], z_mean[:, 1], c=y_test)
     plt.colorbar()
     plt.xlabel("Dimension 1")
     plt.ylabel("Dimension 2")
-    plt.savefig(filename)
+    plt.savefig(f'{save_dir}/vae_mean.png')
+
     plt.ioff()
     img = np.reshape(x_test[0], (image_size, image_size))
     plt.axis('off')
     plt.imshow(img, cmap='gray_r')
     plt.savefig(f'{save_dir}/seven_original.png')
+
+    plt.ioff()
     encoder_input = np.expand_dims(x_test[0], axis=0)
     mean, _, _ = vae.encoder.predict(encoder_input)
     decoded_output = vae.decoder.predict(mean)
-    plt.ioff()
-    img = np.reshape(x_test[0], (image_size, image_size))
     plt.axis('off')
     plt.imshow(np.reshape(decoded_output, (image_size, image_size)), cmap='gray_r')
     plt.savefig(f'{save_dir}/seven_reproduced.png')
+
     plt.ioff()
     plt.figure(figsize=(5, 20))
     for i in range(30):
@@ -108,190 +79,40 @@ def run_vae_mnist():
         encoder_input = np.expand_dims(x_test[i], axis=0)
         mean, _, _ = vae.encoder.predict(encoder_input)
         decoded_output = vae.decoder.predict(mean)
-        img = np.reshape(x_test[0], (image_size, image_size))
         plt.axis('off')
         plt.imshow(np.reshape(decoded_output, (image_size, image_size)), cmap='gray_r')
     plt.savefig(f'{save_dir}/mnist_reproduction.png')
-    n = 30
-    digit_size = 28
-    figure = np.zeros((digit_size * n, digit_size * n))
-    # linearly spaced coordinates corresponding to the 2D plot
-    # of digit classes in the latent space
-    grid_x = np.linspace(-4, 4, n)
-    grid_y = np.linspace(-4, 4, n)[::-1]
-    for i, yi in enumerate(grid_y):
-        for j, xi in enumerate(grid_x):
-            z_sample = np.array([[xi, yi]])
-            x_decoded = vae.decoder.predict(z_sample)
-            digit = x_decoded[0].reshape(digit_size, digit_size)
-            figure[i * digit_size: (i + 1) * digit_size,
-            j * digit_size: (j + 1) * digit_size] = digit
-    plt.figure(figsize=(10, 10))
-    start_range = digit_size // 2
-    end_range = n * digit_size + start_range
-    pixel_range = np.arange(start_range, end_range, digit_size)
-    sample_range_x = np.round(grid_x, 1)
-    sample_range_y = np.round(grid_y, 1)
-    plt.xticks(pixel_range, sample_range_x)
-    plt.yticks(pixel_range, sample_range_y)
-    plt.xlabel("z[0]")
-    plt.ylabel("z[1]")
-    plt.imshow(figure, cmap='gray_r')
-    plt.savefig(f'{save_dir}/all.png')
 
 
-def run_vae_tnf_bam():
-    save_dir, outdir = 'results/vae', 'results/vae'
-    batch_size, n_epoch = 100, 500
+def pretrain_vae_model():
+    save_dir = 'results/vae_model-cami'
+    batch_size, n_epoch = 256, 300
     n_hidden = 64
     destroy = False
+    tnf, rpkm = get_input(batch_size, destroy, save_dir)
+    x = sklearn.preprocessing.minmax_scale(tnf, feature_range=(0, 1), axis=1, copy=True)
+    x1 = sklearn.preprocessing.minmax_scale(rpkm, feature_range=(0, 1), axis=0, copy=True)
 
-    inputs = get_input(batch_size, destroy, save_dir)
-    # TODO improve
-    vae = VAE(batch_size=batch_size, n_epoch=n_epoch,
-              n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
-    vae.model.fit(x=inputs, epochs=n_epoch, batch_size=batch_size)
+    print(f'x_max={np.max(x)}, x_min={np.min(x)}')
+    print(f'x1_max={np.max(x1)}, x1_min={np.min(x1)}')
 
+    inputs = []
+    for idx, x in enumerate(x):
+        tmp = np.append(x1[idx], x)
+        inputs.append(tmp)
+    inputs = np.array(inputs)
 
-def get_input(batch_size, destroy, save_dir):
-    Path(save_dir).mkdir(parents=True, exist_ok=True)
-    bams_path = ['/share_data/cami_low/bams/RL_S001.bam']
-    fasta_path = '/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta'
+    input_shape = (104,)
 
-    tnf_path = f'{save_dir}/tnf.npz'
-    if not Path(tnf_path).exists():
-        tnf_path = None
-    else:
-        fasta_path = None
+    vae: VAE = VAE(input_shape=input_shape, n_hidden=n_hidden, save_dir=save_dir)
+    vae.compile(optimizer='Adam')
 
-    names_path = f'{save_dir}/names.npz'
-
-    lengths_path = f'{save_dir}/lengths.npz'
-    if not Path(lengths_path).exists():
-        lengths_path = None
-
-    rpkm_path = f'{save_dir}/rpkm.npz'
-    if not Path(rpkm_path).exists():
-        rpkm_path = None
-    else:
-        bams_path = None
-
-    with open(f'{save_dir}/vectors.log', 'w') as logfile:
-        tnf, contignames, contiglengths = calc_tnf(outdir=save_dir,
-                                                   fastapath=fasta_path,
-                                                   tnfpath=tnf_path,
-                                                   namespath=names_path,
-                                                   lengthspath=lengths_path,
-                                                   mincontiglength=100,
-                                                   logfile=logfile)
-        if not Path(names_path).exists():
-            write_npz(names_path, contignames)
-        rpkm = calc_rpkm(outdir=save_dir,
-                         bampaths=bams_path,
-                         rpkmpath=rpkm_path,
-                         jgipath=None, mincontiglength=100, refhash=None, ncontigs=len(tnf), minalignscore=None,
-                         minid=None,
-                         subprocesses=min(os.cpu_count(), 8), logfile=logfile)
-    mask = tnf.sum(axis=1) != 0
-    # If multiple samples, also include nonzero depth as requirement for accept
-    # of sequences
-    if rpkm.shape[1] > 1:
-        depthssum = rpkm.sum(axis=1)
-        mask &= depthssum != 0
-        depthssum = depthssum[mask]
-    if mask.sum() < batch_size:
-        raise ValueError('Fewer sequences left after filtering than the batch size.')
-    if destroy:
-        rpkm = numpy_inplace_maskarray(rpkm, mask)
-        tnf = numpy_inplace_maskarray(tnf, mask)
-    else:
-        # The astype operation does not copy due to "copy=False", but the masking
-        # operation does.
-        rpkm = rpkm[mask].astype(np.float32, copy=False)
-        tnf = tnf[mask].astype(np.float32, copy=False)
-    # If multiple samples, normalize to sum to 1, else zscore normalize
-    """
-        if rpkm.shape[1] > 1:
-            rpkm /= depthssum.reshape((-1, 1))
-        else:
-            zscore(rpkm, axis=0, inplace=True)
-    
-        zscore(tnf, axis=0, inplace=True)
-        """
-    # TODO improve
-    # inputs = []
-    # for idx, x in enumerate(tnf):
-    #     tmp = np.append(rpkm[idx], x)
-    #     inputs.append(tmp)
-    # inputs = np.array(inputs)
-    return tnf, rpkm
-
-
-def custom_vae_loss(mean: Dense, variant: Dense, decoder: Model):
-
-    def loss(y_true, y_pre):
-        print(f'get model mean: {mean}')
-        print(f'get model variant: {variant}')
-        print(f'get decoder input: {decoder.inputs}')
-        # print(f'loss1: y_true={y_true}, y_pred={y_pre}')
-        kl_loss = 1 + variant - K.square(mean) - K.exp(variant)
-        kl_loss = K.sum(kl_loss, axis=-1)
-        kl_loss *= -0.5
-        kl_loss = kld(y_true, y_pre)
-        reconstruction_loss = mse(y_true, y_pre)
-        vae_loss = reconstruction_loss + kl_loss
-        print(f'Got new recons loss {reconstruction_loss}')
-        print(f'Got new kl loss {kl_loss}')
-        print(f'Got new vae loss {vae_loss}')
-        return vae_loss
-
-    return loss
-
-def custom_kld_loss(y, y_):
-    # print(f'loss2: va1={y}, va2={y_}')
-    return kld(y, y_)
-
-
-def run_deep_clustering():
-    save_dir = 'results/dvm5-mean-60-ep500-it5000-klmse-0.1_1'
-    batch_size, n_epoch = 100, 300
-    n_hidden = 64
-    destroy = False
-    x = get_input(batch_size, destroy, save_dir)
-    n_clusters = 60
-
-    # vae = VAE1(batch_size=batch_size, n_epoch=n_epoch,
-    #            n_hidden=n_hidden, input_shape=(104,), print_model=True, save_dir=save_dir)
-    # optimizer = 'adam'
-    # vae.vae.compile(optimizer=optimizer)
-
-    dvmb = DVMB(n_hidden=n_hidden, batch_size=batch_size, n_epoch=n_epoch, n_clusters=n_clusters, save_dir=save_dir)
-    # dvmb.compile(loss=[custom_kld_loss, custom_vae_loss(dvmb.vae.z_mean, dvmb.vae.z_log_var, dvmb.vae.decoder)])
-    dvmb.compile(loss=['kld', 'mse'])
-
-    # pre-training
-    # dvmb.init_vae(x=x)
-    # use pre-trained weights
-    dvmb.init_vae(x=x, vae_weights=f'{save_dir}/pretrain_vae_model.h5')
-    # real training
-    dvmb.fit(x=x, batch_size=batch_size, maxiter=5000)
-    # dvmb.load_weights(weights_path=f'{save_dir}/dcec_model_final.h5')
-    # predict
-    print(f'DVMB loss labels {dvmb.model.metrics_names}')
-    print(f'VAE loss labels {dvmb.vae.model.metrics_names}')
-    clusters = dvmb.predict(x=x)
-
-    # save to bins
-    fasta = '/share_data/cami_low/CAMI_low_RL_S001__insert_270_GoldStandardAssembly.fasta'
-    fastaDict = readContigs(fasta, onlySequence=False)
-    binsDict = mapBinAndContigNames(fastaDict, clusters)
-    Path(f'{save_dir}/bins').mkdir(exist_ok=True)
-    writeBins(f'{save_dir}/bins', bins=binsDict, fastadict=fastaDict)
-    print(f'predict size: ', len(clusters))
-
+    plot_callback = PlotCallback(f'/share_data/reports/dvmb/vae-model-cami-loss0.png', ['loss', 'reconstruction_loss'])
+    plot1_callback = PlotCallback(f'/share_data/reports/dvmb/vae-model-cami-loss1.png', ['kl_loss'])
+    vae.fit(inputs, epochs=n_epoch, batch_size=batch_size, callbacks=[plot_callback, plot1_callback])
+    plot_callback.plot()
+    plot1_callback.plot()
 
 if __name__ == "__main__":
-    # run_deep_clustering()
-    # test_vamb_ptorch()
-    # run_vae_tnf_bam()
-    run_vae_mnist()
+    pretrain_vae_model()
+    # pretrain_vae_model_mnist()

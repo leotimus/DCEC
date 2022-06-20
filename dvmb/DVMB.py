@@ -5,7 +5,7 @@ from keras.losses import mse, kld
 from tensorflow import keras
 from sklearn.cluster import KMeans
 from plotting.PlotCallback import PlotCallback
-from vae.VAE_Model import VAE_Model
+from vae.VAE import VAE
 
 
 class ClusteringLayer(keras.layers.Layer):
@@ -70,12 +70,12 @@ class ClusteringLayer(keras.layers.Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class DVMB2(object):
+class DVMB(object):
     def __init__(self, n_hidden=64, batch_size=256, n_epoch=500, n_clusters=10, save_dir='results/vae2',
                  use_batch_norm=False, input_shape=(104,), vae_optimizer='Adam', optimizer='Adam',
                  loss_weights=[0.1, 1], update_interval=100, max_iter=2e3):
 
-        super(DVMB2, self).__init__()
+        super(DVMB, self).__init__()
         self.tol = 0.01
         self.update_interval = update_interval
         self.max_iter = max_iter
@@ -89,7 +89,7 @@ class DVMB2(object):
         self.optimizer = optimizer
         self.loss_weights = loss_weights
 
-        self.vae = VAE_Model(n_hidden=n_hidden, input_shape=input_shape, save_dir=save_dir, use_batch_norm=use_batch_norm)
+        self.vae = VAE(n_hidden=n_hidden, input_shape=input_shape, save_dir=save_dir, use_batch_norm=use_batch_norm)
         self.vae.compile(optimizer=vae_optimizer)
 
         sampling_layer = self.vae.encoder(self.vae.encoder_input)
@@ -162,7 +162,7 @@ class DVMB2(object):
         print(f'Initializing cluster centers with k-means {self.n_clusters}.')
         kmeans = KMeans(n_clusters=self.n_clusters, n_init=20)
         latent_space = self.vae.encoder.predict(x=x)
-        z = latent_space[0]
+        z = latent_space[2]
         self.y_pred = kmeans.fit_predict(z)
         y_pred_last = np.copy(self.y_pred)
 
