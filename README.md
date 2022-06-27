@@ -1,29 +1,15 @@
-# Deep Clustering with Convolutional Autoencoders (DCEC)
+# Deep Metagenomic Binners (DMB)
 
-Keras implementation for ICONIP-2017 paper:
+This repository contains three proposed metagenomic binners. All binners utilize a joint deep clustering method, which is borrowed from Deep Clustering with Convolutional Autoencoders (DCEC, https://github.com/XifengGuo/DCEC)
 
-* Xifeng Guo, Xinwang Liu, En Zhu, Jianping Yin. 
-Deep Clustering with Convolutional Autoencoders. ICONIP 2017.
+The proposed binners are:
+1. Deep Convolutional Metagenomic Binner (DCMB)
 
-## Usage
-1. Install [Keras >=v2.0](https://github.com/fchollet/keras), scikit-learn and git   
-`sudo pip install keras scikit-learn`   
-`sudo apt-get install git`
-2. Clone the code to local.   
-`git clone https://github.com/XifengGuo/DCEC.git DCEC`
-3. Prepare datasets.    
+This binner utilizes unprocessed contigs as the only input feature.
 
-        cd DCEC/data/usps   
-        bash ./download_usps.sh   
-        cd ../..
+2. Deep Stacked Metagenomic Binner (DSMB) 
 
-4. Run experiment on MNIST.   
-`python DCEC.py mnist`     
-The DCEC model will be saved to "results/temp/dcec_model_final.h5".
+This binner utilizes as input handcrafted features, namely abundance and composition.
 
-5. Run experiment on USPS.   
-`python DCEC.py usps`   
-
-6. Run experiment on MNIST-TEST.   
-`python DCEC.py mnist-test`   
+3. Deep Variational Metagenomic Binner (DVMB)
 
