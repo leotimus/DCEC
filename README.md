@@ -1,3 +1,3 @@
-# Deep Clustering with Convolutional Autoencoders (DCEC)
+Deep Stacked Metagenomic Binner (DSMB)
 
 
