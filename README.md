@@ -1,3 +1,3 @@
-Deep Stacked Metagenomic Binner (DSMB)
+# Deep Stacked Metagenomic Binner (DSMB)
 
 
